@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>(function(){try{var t=localStorage.getItem('v_theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Vedritam School Stock Ledger</title>
+    <link rel="stylesheet" href="style.css?v=11.1">
+    <link rel="stylesheet" href="intro.css?v=1.2">
+</head>
+<body>
+    <div class="login-bg">
+        <div class="login-card">
+            <img src="logo.png" alt="Vedritam Logo" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'150\' height=\'40\'><text x=\'0\' y=\'30\' font-family=\'Arial\' font-size=\'30\' fill=\'%230f3a61\' font-weight=\'bold\'>VEDRITAM</text></svg>'">
+
+            <div class="auth-tabs" id="authTabs">
+                <button type="button" class="auth-tab active" data-tab="signin">Sign In</button>
+                <button type="button" class="auth-tab" data-tab="signup">Sign Up</button>
+            </div>
+
+            <!-- Sign in -->
+            <div id="paneSignin">
+                <h2>System Login</h2>
+                <p id="signoutReason" style="display:none;margin:0 0 .8rem;padding:.6rem .75rem;border-radius:8px;
+                   background:rgba(231,76,60,.12);color:#b93a2b;font-size:.85rem"></p>
+                <form class="login-form" id="loginForm">
+                    <div>
+                        <label style="display:block; margin-bottom:5px; font-size:0.85rem;">Username</label>
+                        <input type="text" id="username" class="form-control" required autocomplete="username">
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:5px; font-size:0.85rem;">Password</label>
+                        <input type="password" id="password" class="form-control" required autocomplete="current-password">
+                    </div>
+                    <div class="form-group" id="twofaField" style="display:none">
+                        <label for="twofaCode">Verification code</label>
+                        <input type="text" id="twofaCode" class="form-control" inputmode="numeric" autocomplete="one-time-code"
+                               maxlength="9" placeholder="6-digit code or backup code">
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="loginBtn">Authenticate</button>
+                </form>
+                <p class="auth-note">
+                    No account yet? <a href="#" data-goto="signup">Request access</a> — an administrator approves every new account.
+                </p>
+            </div>
+
+            <!-- Sign up -->
+            <div id="paneSignup" style="display:none;">
+                <h2>Request an Account</h2>
+                <form class="login-form" id="signupForm">
+                    <div>
+                        <label style="display:block; margin-bottom:5px; font-size:0.85rem;">School / Organisation</label>
+                        <input type="text" id="suSchool" class="form-control" placeholder="e.g. DAV BGPM" required>
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:5px; font-size:0.85rem;">Contact Person</label>
+                        <input type="text" id="suFullName" class="form-control" placeholder="Full name" required>
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:5px; font-size:0.85rem;">Email</label>
+                        <input type="email" id="suEmail" class="form-control" placeholder="name@school.edu">
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:5px; font-size:0.85rem;">Username</label>
+                        <input type="text" id="suUsername" class="form-control" required autocomplete="username">
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:5px; font-size:0.85rem;">Password</label>
+                        <input type="password" id="suPassword" class="form-control" required minlength="6" autocomplete="new-password">
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:5px; font-size:0.85rem;">Confirm Password</label>
+                        <input type="password" id="suPassword2" class="form-control" required minlength="6" autocomplete="new-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="signupBtn">Submit Request</button>
+                </form>
+                <p class="auth-note">
+                    Requests are created as <strong>Pending</strong>. You can sign in once an administrator approves the account.
+                    <br>Already approved? <a href="#" data-goto="signin">Back to sign in</a>
+                </p>
+            </div>
+        </div>
+    </div>
+    <div id="toast-container"></div>
+    <script src="intro.js?v=1.2"></script>
+    <script src="app.js?v=11.0"></script>
+<script src="sounds.js?v=1.0"></script>
+</body>
+</html>

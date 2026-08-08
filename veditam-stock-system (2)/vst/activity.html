@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Log - Vedritam</title>
+    <script>(function(){try{var t=localStorage.getItem('v_theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+    <link rel="stylesheet" href="style.css?v=11.1">
+    <link rel="stylesheet" href="theme.css?v=12.1">
+    <style>
+        /* Activity Log - high contrast table */
+        .main-content .table-wrapper {
+            background: #ffffff;
+            border: 1px solid #b9c2cf;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(16, 24, 40, .08);
+            overflow: auto;
+        }
+        .main-content .spreadsheet thead th {
+            background: #1f2a37;
+            color: #ffffff;
+            font-weight: 600;
+            letter-spacing: .02em;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            border-right: 1px solid rgba(255,255,255,.15);
+        }
+        .main-content .spreadsheet tbody td {
+            color: #16202b;
+            font-size: .88rem;
+            border-bottom: 1px solid #dfe4ea;
+            border-right: 1px solid #eef1f4;
+        }
+        .main-content .spreadsheet tbody tr { background: #ffffff; }
+        .main-content .spreadsheet tbody tr:nth-child(even) { background: #f3f6fa; }
+        .main-content .spreadsheet tbody tr:hover { background: #e4edfb; }
+        .main-content .spreadsheet .muted-small { color: #566373; }
+        .main-content .spreadsheet .badge-role {
+            background: #e6edf7;
+            color: #1f3a5f;
+            border: 1px solid #b6c8e0;
+            font-weight: 600;
+        }
+        [data-theme="dark"] .main-content .table-wrapper { background: #131a23; border-color: #2c3846; }
+        [data-theme="dark"] .main-content .spreadsheet thead th { background: #0d131a; color: #f2f6fa; }
+        [data-theme="dark"] .main-content .spreadsheet tbody td { color: #e6ecf3; border-bottom-color: #263242; border-right-color: #1d2733; }
+        [data-theme="dark"] .main-content .spreadsheet tbody tr { background: #151d27; }
+        [data-theme="dark"] .main-content .spreadsheet tbody tr:nth-child(even) { background: #1b242f; }
+        [data-theme="dark"] .main-content .spreadsheet tbody tr:hover { background: #24303e; }
+        [data-theme="dark"] .main-content .spreadsheet .muted-small { color: #9fb0c2; }
+        [data-theme="dark"] .main-content .spreadsheet .badge-role { background: #1e2b3b; color: #cfe1f7; border-color: #35485f; }
+    </style>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body data-page="activity">
+    <header class="app-header">
+        <div class="header-left">
+            <div class="header-title">Activity Log</div>
+        </div>
+        <div class="header-right">
+            <a href="dashboard.html" class="btn btn-secondary" style="background: rgba(255,255,255,0.2); color:white; border:none;">Dashboard</a>
+        </div>
+    </header>
+    <main class="main-content" style="max-width: 1200px; margin: 0 auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; gap:1rem; flex-wrap:wrap;">
+            <div>
+                <h2 style="margin:0;">Audit Trail</h2>
+                <p class="muted-small">A complete, tamper-evident record of every login, stock movement and account change across all schools.</p>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button class="btn btn-secondary" onclick="App.activity.load()">Refresh</button>
+                <button class="btn btn-primary staff-only" onclick="App.activity.download()">Download CSV</button>
+            </div>
+        </div>
+
+        <div class="filter-bar">
+            <input type="search" id="auditUser" class="form-control" placeholder="Filter by user...">
+            <select id="auditAction" class="form-control">
+                <option value="">All actions</option>
+                <option value="LOGIN">Login</option>
+                <option value="LOGIN_FAILED">Failed login</option>
+                <option value="LOGOUT">Logout</option>
+                <option value="SIGNUP_REQUEST">Signup request</option>
+                <option value="USER_CREATED">User created</option>
+                <option value="USER_UPDATED">User updated</option>
+                <option value="USER_DELETED">User deleted</option>
+                <option value="PASSWORD_RESET">Password reset</option>
+                <option value="PASSWORD_CHANGED">Password changed</option>
+                <option value="LEDGER_SAVE">Ledger saved</option>
+                <option value="LEDGER_DELETE">Ledger deleted</option>
+                <option value="SCHOOL_CREATED">School created</option>
+                <option value="SCHOOL_DELETED">School deleted</option>
+                <option value="CLASS_CREATED">Class created</option>
+                <option value="CLASS_DELETED">Class deleted</option>
+            </select>
+            <span class="muted-small" id="auditCount"></span>
+        </div>
+
+        <div class="table-wrapper" style="height: auto;">
+            <table class="spreadsheet" style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th>When</th>
+                        <th>User</th>
+                        <th>Action</th>
+                        <th>Record</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody id="auditBody">
+                    <tr><td colspan="5" style="padding:20px; text-align:center;">Loading activity...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <div id="toast-container"></div>
+    <script src="app.js?v=11.0"></script>
+<script src="avatars.js?v=1.0"></script>
+    <script src="sounds.js?v=1.0"></script>
+<script src="shell.js?v=12.1"></script>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transfers - Vedritam</title>
+<script>(function(){try{var t=localStorage.getItem('v_theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+<link rel="stylesheet" href="style.css?v=11.1">
+<link rel="stylesheet" href="theme.css?v=12.1">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+  .tf-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:900px){.tf-grid{grid-template-columns:1fr}}
+  .tf-card{background:var(--v-surface,#fff);border:1px solid var(--v-border,#e2e8f0);border-radius:14px;padding:18px}
+  .tf-card h3{margin:0 0 12px;font-size:16px;font-weight:650}
+  .tf-form label{display:block;font-size:12.5px;font-weight:600;color:var(--text-muted,#64748B);margin:8px 0 4px}
+  .tf-form select,.tf-form input,.tf-form textarea{width:100%;padding:9px 11px;border:1px solid var(--v-border,#e2e8f0);border-radius:8px;background:transparent;color:inherit;font:inherit}
+  .tf-tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+  .tf-tbl th,.tf-tbl td{padding:9px 8px;border-bottom:1px solid var(--v-border,#e2e8f0);text-align:left}
+  .tf-tbl th{font-size:12px;color:var(--text-muted,#64748B);text-transform:uppercase;letter-spacing:.03em}
+  .st{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600}
+  .st.Pending{background:rgba(245,158,11,.15);color:#B45309}
+  .st.Approved{background:rgba(37,99,235,.15);color:#1D4ED8}
+  .st.Completed{background:rgba(22,163,74,.15);color:#15803D}
+  .st.Rejected{background:rgba(220,38,38,.15);color:#B91C1C}
+</style>
+</head>
+<body data-page="transfers">
+<main class="main-content">
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px">
+    <div>
+      <h1 class="v-page-title">Transfers</h1>
+      <p class="v-page-sub">Request a stock transfer between schools. Administrators approve, reject or mark completed.</p>
+    </div>
+  </div>
+
+  <div class="tf-grid">
+    <div class="tf-card">
+      <h3>New transfer request</h3>
+      <p style="font-size:12.5px;color:var(--text-muted);margin:-6px 0 8px">Your school requests stock from another school. That school approves if they have it, or rejects with a reason.</p>
+      <form id="tfForm" class="tf-form">
+        <label>From school (yours — requesting)</label>
+        <select id="tFrom" required></select>
+        <label>To school (holds the stock)</label>
+        <select id="tTo" required></select>
+        <label>Book name</label>
+        <input id="tBook" required placeholder="e.g. Class 6 English Reader">
+        <label>Quantity</label>
+        <input id="tQty" type="number" min="1" step="1" required>
+        <label>Remarks (optional)</label>
+        <textarea id="tRemarks" rows="2"></textarea>
+        <button class="v-btn" type="submit" id="tSubmit" style="margin-top:14px">Submit request</button>
+      </form>
+    </div>
+
+    <div class="tf-card">
+      <h3>All transfers</h3>
+      <div style="max-height:520px;overflow:auto">
+        <table class="tf-tbl">
+          <thead><tr><th>Date</th><th>From → To</th><th>Book</th><th>Qty</th><th>Status</th><th>Note</th><th>Action</th></tr></thead>
+          <tbody id="tfBody"><tr><td colspan="7" style="text-align:center;color:var(--text-muted)">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div id="toast-container"></div>
+<script src="app.js?v=11.0"></script>
+<script src="avatars.js?v=1.0"></script>
+<script src="sounds.js?v=1.0"></script>
+<script src="shell.js?v=12.1"></script>
+<script src="chatbot.js?v=10.0"></script>
+<script>
+(function(){
+  var schoolMap = {};
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function toast(m,t){ if(window.App&&App.ui) App.ui.showToast(m,t||'success'); }
+  var vRole = localStorage.getItem('v_role');
+  var isAdmin = vRole === 'super_admin' || vRole === 'admin';
+  var mySchool = localStorage.getItem('v_school_id')||'';
+
+  async function loadSchools(){
+    var schools = await App.apiCall('/schools');
+    schools.forEach(function(s){ schoolMap[s.id]=s.name; });
+    var opts = schools.map(function(s){ return '<option value="'+s.id+'">'+esc(s.name)+'</option>'; }).join('');
+    document.getElementById('tFrom').innerHTML = '<option value="">-- select --</option>'+opts;
+    document.getElementById('tTo').innerHTML   = '<option value="">-- select --</option>'+opts;
+    if(!isAdmin && mySchool){
+      document.getElementById('tFrom').value = mySchool;
+      document.getElementById('tFrom').disabled = true;
+    }
+  }
+
+  // The server decides who may approve or decline and sends can_decide with
+  // every row. The old client-side guess hid the buttons for staff accounts,
+  // which is why Approve / Decline looked dead.
+  function canDecide(r){
+    if (r && typeof r.can_decide !== 'undefined') return r.can_decide === true;
+    if (isAdmin) return true;
+    return !!(mySchool && String(r.to_school_id) === String(mySchool));
+  }
+
+  // Ask for a decline reason without depending on window.prompt, which some
+  // browsers suppress (that made Decline do nothing at all).
+  function askReason(){
+    var reason = null;
+    try { reason = window.prompt('Please give a reason for declining this request:', ''); }
+    catch (e) { reason = undefined; }
+    if (reason === null) return null;                       // cancelled
+    if (typeof reason === 'undefined') return 'Declined by the receiving school.';
+    reason = String(reason).trim();
+    return reason || 'Declined by the receiving school.';
+  }
+
+  async function loadTransfers(){
+    var rows = await App.apiCall('/transfers');
+    var body = document.getElementById('tfBody');
+    if(!rows.length){ body.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">No transfers yet.</td></tr>'; return; }
+    body.innerHTML = rows.map(function(r){
+      var action='';
+      if(canDecide(r) && r.status==='Pending'){
+        action = '<button class="v-btn ghost" data-act="Approved" data-id="'+r.id+'" style="padding:4px 10px">Approve</button> '+
+                 '<button class="v-btn ghost" data-act="Rejected" data-id="'+r.id+'" style="padding:4px 10px">Decline</button>';
+      } else if (canDecide(r) && r.status==='Approved'){
+        action = '<button class="v-btn ghost" data-act="Completed" data-id="'+r.id+'" style="padding:4px 10px">Mark completed</button>';
+      } else if (r.status==='Pending'){
+        action = '<span style="font-size:12px;color:var(--text-muted)">Waiting for '+
+                 esc(schoolMap[r.to_school_id]||('school '+r.to_school_id))+' to decide</span>';
+      }
+      var note = '';
+      if (r.status === 'Rejected' && r.decision_remarks) note = esc(r.decision_remarks);
+      else if (r.remarks) note = esc(r.remarks);
+      return '<tr><td>'+esc(r.timestamp)+'</td><td>'+esc(schoolMap[r.from_school_id]||r.from_school_id)+' → '+esc(schoolMap[r.to_school_id]||r.to_school_id)+
+        '</td><td>'+esc(r.book_name)+'</td><td>'+esc(r.quantity)+'</td>'+
+        '<td><span class="st '+esc(r.status)+'">'+esc(r.status)+'</span></td>'+
+        '<td style="font-size:12px;color:var(--text-muted);max-width:180px">'+note+'</td>'+
+        '<td>'+action+'</td></tr>';
+    }).join('');
+  }
+
+  document.getElementById('tfForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    var btn = document.getElementById('tSubmit'); btn.disabled=true;
+    try{
+      await App.apiCall('/transfers','POST',{
+        fromSchoolId: parseInt(document.getElementById('tFrom').value,10),
+        toSchoolId:   parseInt(document.getElementById('tTo').value,10),
+        bookName:     document.getElementById('tBook').value,
+        quantity:     parseInt(document.getElementById('tQty').value,10),
+        remarks:      document.getElementById('tRemarks').value,
+      });
+      toast('Transfer request submitted.');
+      document.getElementById('tfForm').reset();
+      if(!isAdmin && mySchool) document.getElementById('tFrom').value = mySchool;
+      loadTransfers();
+    }catch(err){ toast(err.message,'error'); }
+    finally{ btn.disabled=false; }
+  });
+
+  document.getElementById('tfBody').addEventListener('click', async function(e){
+    var b = e.target.closest('button[data-act]'); if(!b) return;
+    var payload = { status: b.dataset.act };
+    if (b.dataset.act === 'Rejected') {
+      var reason = askReason();
+      if (reason === null) return;             // cancelled
+      payload.remarks = reason;
+    }
+    var label = b.textContent;
+    b.disabled = true; b.textContent = 'Working...';
+    try{
+      await App.apiCall('/transfers/'+b.dataset.id+'/status','PUT',payload);
+      toast('Transfer ' + (b.dataset.act === 'Rejected' ? 'declined' : b.dataset.act.toLowerCase()) + '.');
+      await loadTransfers();
+    }catch(err){
+      toast((err && err.message) ? err.message : 'Could not update this transfer.','error');
+      b.disabled = false; b.textContent = label;
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', function(){
+    if(!localStorage.getItem('v_token')){ window.location.href='index.html'; return; }
+    loadSchools().then(loadTransfers);
+  });
+})();
+</script>
+</body>
+</html>

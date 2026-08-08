@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Security - Vedritam</title>
+<script>(function(){try{var t=localStorage.getItem('v_theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+<link rel="stylesheet" href="style.css?v=11.1">
+<link rel="stylesheet" href="theme.css?v=12.1">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+  .sec-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:900px){.sec-grid{grid-template-columns:1fr}}
+  .sec-card{background:var(--v-surface,#fff);border:1px solid var(--v-border,#e2e8f0);border-radius:14px;padding:18px}
+  .sec-card h3{margin:0 0 4px;font-size:16px;font-weight:650}
+  .sec-card p.hint{margin:0 0 14px;font-size:12.5px;color:var(--v-text-muted,#64748b)}
+  .sec-tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .sec-tbl th,.sec-tbl td{padding:8px;border-bottom:1px solid var(--v-border,#e2e8f0);text-align:left;white-space:nowrap}
+  .sec-tbl th{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--v-text-muted,#64748b)}
+  .tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:700}
+  .tag.ok{background:rgba(22,163,74,.14);color:#15803D}
+  .tag.bad{background:rgba(220,38,38,.14);color:#B91C1C}
+  .tag.warn{background:rgba(245,158,11,.16);color:#B45309}
+  .sec-card .v-btn,#secApply,#secPrev,#secNext{width:auto;flex:0 0 auto}
+  .sec-card input{width:100%;padding:9px 11px;border:1px solid var(--v-border,#e2e8f0);border-radius:8px;background:transparent;color:inherit;font:inherit}
+  .sec-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:var(--v-bg,#f8fafc);border:1px dashed var(--v-border,#e2e8f0);border-radius:8px;padding:10px;word-break:break-all}
+</style>
+</head>
+<body data-page="security">
+<main class="main-content">
+  <div style="margin-bottom:14px">
+    <h1 class="v-page-title">Security</h1>
+    <p class="v-page-sub">Login history, session policy and two-factor authentication.</p>
+  </div>
+
+  <div class="sec-grid">
+    <section class="sec-card">
+      <h3>Session</h3>
+      <p class="hint">Sessions end automatically after a period of inactivity.</p>
+      <div id="secSession">Loading...</div>
+    </section>
+
+    <section class="sec-card superadmin-only">
+      <h3>Two-factor authentication</h3>
+      <p class="hint">Required protection for Super Admin accounts. Uses any TOTP app (Google Authenticator, Authy, 1Password).</p>
+      <div id="sec2fa">Loading...</div>
+    </section>
+
+    <section class="sec-card" style="grid-column:1/-1">
+      <h3>Login history</h3>
+      <p class="hint">Every sign-in attempt, including failures, lockouts and session timeouts.</p>
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <input id="secFilterUser" placeholder="Filter by username" style="max-width:220px">
+        <select id="secFilterResult" style="max-width:200px;padding:9px 11px;border:1px solid var(--v-border);border-radius:8px;background:transparent;color:inherit;font:inherit">
+          <option value="">All results</option>
+          <option value="SUCCESS">Success</option>
+          <option value="FAILED">Failed</option>
+          <option value="LOCKED">Locked out</option>
+          <option value="2FA_REQUIRED">2FA challenge</option>
+          <option value="2FA_FAILED">2FA failed</option>
+          <option value="SESSION_TIMEOUT">Session timeout</option>
+          <option value="LOGOUT">Logout</option>
+        </select>
+        <button class="v-btn ghost" id="secApply" type="button" style="width:auto;flex:0 0 auto">Apply</button>
+      </div>
+      <div style="max-height:420px;overflow:auto">
+        <table class="sec-tbl">
+          <thead><tr><th>When</th><th>User</th><th>Result</th><th>IP</th><th>Detail</th></tr></thead>
+          <tbody id="secBody"><tr><td colspan="5">Loading...</td></tr></tbody>
+        </table>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+        <button class="v-btn ghost" id="secPrev" type="button">Previous</button>
+        <span id="secPage" style="font-size:12.5px;color:var(--v-text-muted)"></span>
+        <button class="v-btn ghost" id="secNext" type="button">Next</button>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div id="toast-container"></div>
+<script src="app.js?v=11.0"></script>
+<script src="avatars.js?v=1.0"></script>
+<script src="sounds.js?v=1.0"></script>
+<script src="shell.js?v=12.1"></script>
+<script>
+(function () {
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function el(id){return document.getElementById(id);}
+  function api(p,m,b){return window.App.apiCall(p,m||'GET',b||null);}
+  function toast(m,t){if(window.App&&App.ui)App.ui.showToast(m,t||'success');}
+  var offset = 0, LIMIT = 50;
+
+  function loadSession(){
+    api('/security/session').then(function(s){
+      var canEdit = localStorage.getItem('v_role') === 'super_admin';
+      var min = s.min_minutes || 5, max = s.max_minutes || 1440;
+      var html = '<div style="font-size:13.5px;line-height:1.9">' +
+        'Idle right now: <strong>' + s.idle_seconds + 's</strong><br>' +
+        'Session ends in: <strong>' + Math.round(s.expires_in_seconds / 60) + ' min</strong> without activity</div>' +
+        '<div style="margin-top:12px">' +
+        '<label for="secTimeout" style="display:block;font-size:12.5px;color:var(--v-text-muted);margin-bottom:5px">Idle timeout (minutes)</label>' +
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+        '<input id="secTimeout" type="number" min="' + min + '" max="' + max + '" step="1" value="' + s.timeout_minutes + '" style="max-width:130px"' + (canEdit ? '' : ' disabled') + '>' +
+        (canEdit ? '<button class="v-btn" id="secSaveTimeout" type="button">Save</button>' : '') +
+        '</div>' +
+        '<p class="hint" style="margin-top:8px">' +
+          (canEdit ? 'Between ' + min + ' and ' + max + ' minutes. Applies to every account immediately.'
+                   : 'Only a Super Admin can change the idle timeout.') +
+        '</p></div>';
+      el('secSession').innerHTML = html;
+      var save = el('secSaveTimeout');
+      if (save) save.addEventListener('click', function(){
+        var value = parseInt(el('secTimeout').value, 10);
+        save.disabled = true;
+        api('/security/session/timeout','PUT',{ minutes: value })
+          .then(function(){ toast('Idle timeout set to ' + value + ' minutes.'); loadSession(); })
+          .catch(function(e){ toast(e.message,'error'); save.disabled = false; });
+      });
+    }).catch(function(e){ el('secSession').textContent = e.message; });
+  }
+
+  function load2fa(){
+    var box = el('sec2fa');
+    api('/security/2fa').then(function(s){
+      if (s.enabled) {
+        box.innerHTML = '<p><span class="tag ok">Enabled</span> ' + s.backup_codes_left + ' backup code(s) left.</p>' +
+          '<input id="disableCode" placeholder="Current 6-digit code" style="margin:10px 0">' +
+          '<button class="v-btn ghost" id="btnDisable" type="button">Turn off 2FA</button>';
+        el('btnDisable').addEventListener('click', function(){
+          api('/security/2fa/disable','POST',{code: el('disableCode').value.trim()})
+            .then(function(){ toast('Two-factor authentication turned off.'); load2fa(); })
+            .catch(function(e){ toast(e.message,'error'); });
+        });
+        return;
+      }
+      box.innerHTML = '<p><span class="tag warn">Not enabled</span> Protect this Super Admin account with a second factor.</p>' +
+        '<button class="v-btn" id="btnEnroll" type="button">Set up 2FA</button>';
+      el('btnEnroll').addEventListener('click', function(){
+        api('/security/2fa/enroll','POST').then(function(d){
+          box.innerHTML = '<p class="hint">Add this secret to your authenticator app, then confirm with the code it shows.</p>' +
+            '<div class="sec-code">' + esc(d.secret) + '</div>' +
+            '<p class="hint" style="margin-top:10px">Backup codes (store them safely, each works once):</p>' +
+            '<div class="sec-code">' + d.backup_codes.map(esc).join('  ') + '</div>' +
+            '<input id="confirmCode" placeholder="6-digit code" style="margin:12px 0">' +
+            '<button class="v-btn" id="btnConfirm" type="button">Confirm & enable</button>';
+          el('btnConfirm').addEventListener('click', function(){
+            api('/security/2fa/confirm','POST',{code: el('confirmCode').value.trim()})
+              .then(function(){ toast('Two-factor authentication enabled.'); load2fa(); })
+              .catch(function(e){ toast(e.message,'error'); });
+          });
+        }).catch(function(e){ toast(e.message,'error'); });
+      });
+    }).catch(function(e){ box.textContent = e.message; });
+  }
+
+  function loadHistory(){
+    var q = '/security/login-history?limit=' + LIMIT + '&offset=' + offset +
+      '&username=' + encodeURIComponent(el('secFilterUser').value.trim()) +
+      '&result=' + encodeURIComponent(el('secFilterResult').value);
+    api(q).then(function(r){
+      var rows = r.items || [];
+      el('secBody').innerHTML = rows.length ? rows.map(function(h){
+        var cls = h.result === 'SUCCESS' ? 'ok' : (h.result === 'LOGOUT' ? 'warn' : 'bad');
+        return '<tr><td>' + esc(h.timestamp) + '</td><td>' + esc(h.username) + '</td>' +
+          '<td><span class="tag ' + cls + '">' + esc(h.result) + '</span></td>' +
+          '<td>' + esc(h.ip || '-') + '</td><td>' + esc(h.detail || '') + '</td></tr>';
+      }).join('') : '<tr><td colspan="5">No login records.</td></tr>';
+      el('secPage').textContent = 'Showing ' + (r.total ? offset + 1 : 0) + '-' +
+        Math.min(offset + LIMIT, r.total) + ' of ' + r.total;
+      el('secNext').disabled = !r.has_more;
+      el('secPrev').disabled = offset === 0;
+    }).catch(function(e){ el('secBody').innerHTML = '<tr><td colspan="5">' + esc(e.message) + '</td></tr>'; });
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    if (!localStorage.getItem('v_token')) { window.location.replace('index.html'); return; }
+    loadSession(); loadHistory();
+    if (localStorage.getItem('v_role') === 'super_admin') load2fa();
+    el('secApply').addEventListener('click', function(){ offset = 0; loadHistory(); });
+    el('secNext').addEventListener('click', function(){ offset += LIMIT; loadHistory(); });
+    el('secPrev').addEventListener('click', function(){ offset = Math.max(0, offset - LIMIT); loadHistory(); });
+    setInterval(function(){ if(!document.activeElement || document.activeElement.id !== 'secTimeout') loadSession(); }, 30000);
+  });
+})();
+</script>
+</body>
+</html>

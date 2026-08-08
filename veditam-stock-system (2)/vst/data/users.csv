@@ -1,0 +1,3 @@
+username,password_hash,role,fullName,email,school_id,lastLogin,status,created_time,created_by
+admin,549a07190d950d5f2c17b493c98ea068$b5ceb97556baba8b7c3e29e843a201e19690409d64a7ddfaa70d3a679b8bee97,super_admin,admin,,,2026-08-08 20:37:56,Active,2026-07-29 02:38:35,system
+tester1,93a8213a4325f344133ddf856a6f3b00$42e3e4ce89a78ad4d93c265a1054e6c1565c2bc32c35ed9b69d0b7409c894bd9,staff,Tester One,t@t.com,,,Active,2026-08-08 20:37:58,admin

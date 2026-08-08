@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stock &amp; Inventory - Vedritam</title>
+<script>(function(){try{var t=localStorage.getItem('v_theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+<link rel="stylesheet" href="style.css?v=11.1">
+<link rel="stylesheet" href="theme.css?v=12.1">
+<link rel="stylesheet" href="modules.css?v=1.0">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body data-page="inventory">
+<main class="main-content">
+  <div class="vm-page-head">
+    <div>
+      <h1 class="v-page-title">Stock &amp; inventory</h1>
+      <p class="v-page-sub">Live closing balance for every resource: opening + purchased − distributed + returned. Colour tells you what needs attention — 🟢 available, 🟠 low stock, 🔴 out of stock.</p>
+    </div>
+  </div>
+  <div class="vm-stats" id="stats"></div>
+  <div class="vm-card">
+    <div class="vm-field-row" style="margin-bottom:12px">
+      <div><label class="vm-label">School</label><div id="fSchool"></div></div>
+      <div><label class="vm-label">Category</label><div id="fCat"></div></div>
+      <div><label class="vm-label">Stock status</label><div id="fStatus"></div></div>
+    </div>
+    <div id="table"></div>
+  </div>
+</main>
+<script src="app.js?v=11.0"></script>
+<script src="avatars.js?v=1.0"></script>
+<script src="sounds.js?v=1.0"></script>
+<script src="shell.js?v=12.1"></script>
+<script src="vmodule.js?v=1.0"></script>
+<script>
+(function () {
+  var all = [], grid = null, school = null, cat = null, status = null;
+  var $ = function (id) { return document.getElementById(id); };
+  var columns = [
+    { key: 'schoolName', label: 'School' },
+    { key: 'standard', label: 'Standard' },
+    { key: 'bookName', label: 'Resource' },
+    { key: 'category', label: 'Category' },
+    { key: 'subject', label: 'Subject' },
+    { key: 'publication', label: 'Publication' },
+    { key: 'openingBalance', label: 'Opening', align: 'right' },
+    { key: 'purchased', label: 'Purchased', align: 'right' },
+    { key: 'distributed', label: 'Distributed', align: 'right' },
+    { key: 'returned', label: 'Returned', align: 'right' },
+    { key: 'closingBalance', label: 'Closing', align: 'right' },
+    { key: 'status', label: 'Stock', render: function (v) { return VM.stockBadge(v); } }
+  ];
+
+  function apply() {
+    var s = school && school.get(), c = cat && cat.get(), st = status && status.get();
+    var rows = all.filter(function (r) {
+      return (!s || String(r.school_id) === String(s)) &&
+             (!c || r.category === c) && (!st || r.status === st);
+    });
+    var out = rows.filter(function (r) { return r.status === 'Out of Stock'; }).length;
+    var low = rows.filter(function (r) { return r.status === 'Low Stock'; }).length;
+    var units = rows.reduce(function (a, r) { return a + VM.num(r.closingBalance); }, 0);
+    $('stats').innerHTML =
+      '<div class="vm-stat"><span>Resource lines</span><strong>' + rows.length + '</strong></div>' +
+      '<div class="vm-stat"><span>Units in stock</span><strong>' + units.toLocaleString('en-IN') + '</strong></div>' +
+      '<div class="vm-stat"><span>Low stock</span><strong>' + low + '</strong></div>' +
+      '<div class="vm-stat"><span>Out of stock</span><strong>' + out + '</strong></div>';
+    if (grid) grid.setRows(rows);
+    else grid = VM.table($('table'), { id: 'inventory', title: 'Stock and inventory', columns: columns, rows: rows });
+  }
+
+  function start() {
+    Promise.all([VM.api('/inventory'), VM.api('/schools').catch(function () { return []; }), VM.options().catch(function () { return {}; })])
+      .then(function (r) {
+        var inv = r[0] && r[0].items ? r[0].items : (Array.isArray(r[0]) ? r[0] : []);
+        var schools = Array.isArray(r[1]) ? r[1] : (r[1].data || []);
+        var byId = {};
+        schools.forEach(function (s) { byId[String(s.id)] = s.name; });
+        all = inv.map(function (row) {
+          row.schoolName = byId[String(row.school_id)] || row.school_id;
+          return row;
+        });
+        school = VM.select($('fSchool'), { placeholder: 'All schools', options: [{ value: '', label: 'All schools' }]
+          .concat(schools.map(function (s) { return { value: s.id, label: s.name, meta: s.code || '' }; })), onChange: apply });
+        var cats = Object.keys(all.reduce(function (a, r) { if (r.category) a[r.category] = 1; return a; }, {})).sort();
+        cat = VM.select($('fCat'), { placeholder: 'All categories', options: [{ value: '', label: 'All categories' }]
+          .concat(cats.map(function (c) { return { value: c, label: c }; })), onChange: apply });
+        status = VM.select($('fStatus'), { placeholder: 'All stock levels', options: [
+          { value: '', label: 'All stock levels' }, { value: 'Available', label: '🟢 Available' },
+          { value: 'Low Stock', label: '🟠 Low Stock' }, { value: 'Out of Stock', label: '🔴 Out of Stock' }], onChange: apply });
+        apply();
+      }).catch(function (e) { VM.toast(e.message, 'error'); });
+    VM.shortcuts({});
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+}());
+</script>
+</body>
+</html>

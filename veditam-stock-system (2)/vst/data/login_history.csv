@@ -1,0 +1,5 @@
+id,username,timestamp,result,ip,user_agent,detail
+b3bf4c86ad6a,admin,2026-08-08 20:35:17,SUCCESS,127.0.0.1,"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.7390.37 Safari/537.36",role=super_admin
+0f20401b97ce,admin,2026-08-08 20:36:26,SUCCESS,127.0.0.1,"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.7390.37 Safari/537.36",role=super_admin
+d60017e7c906,admin,2026-08-08 20:37:08,SUCCESS,127.0.0.1,"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.7390.37 Safari/537.36",role=super_admin
+fd3d70993692,admin,2026-08-08 20:37:56,SUCCESS,127.0.0.1,"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.7390.37 Safari/537.36",role=super_admin

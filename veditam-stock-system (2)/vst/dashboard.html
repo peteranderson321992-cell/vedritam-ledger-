@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard - Vedritam School Stock Ledger</title>
+<script>(function(){try{var t=localStorage.getItem('v_theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+<link rel="stylesheet" href="style.css?v=11.1">
+<link rel="stylesheet" href="theme.css?v=12.1">
+<link rel="stylesheet" href="welcome.css?v=1.0">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body data-page="dashboard">
+
+<main class="main-content">
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap">
+    <div>
+      <h1 class="v-page-title">Dashboard</h1>
+      <p class="v-page-sub">Live overview of stock, distribution and school activity.</p>
+    </div>
+    <a class="v-btn ghost" href="reports.html" id="btnFullReports" style="width:auto"><i data-lucide="bar-chart-3"></i> View full reports</a>
+  </div>
+
+  <!-- Filters -->
+  <section class="v-card" id="dashFilters" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin:16px 0 18px;padding:16px">
+    <div><label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:4px">School</label>
+      <select id="fltSchool" class="v-input" style="min-width:200px"><option value="">All Schools</option></select></div>
+    <div><label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:4px">From</label>
+      <input type="date" id="fltFrom" class="v-input"></div>
+    <div><label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:4px">To</label>
+      <input type="date" id="fltTo" class="v-input"></div>
+    <div><label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:4px">Staff / User</label>
+      <input type="text" id="fltStaff" class="v-input" placeholder="username"></div>
+    <button class="v-btn ghost" id="fltRefresh" style="width:auto">Refresh</button>
+    <button class="v-btn ghost" id="fltReset" style="width:auto">Reset</button>
+  </section>
+
+  <div id="dashFilterWarn" style="display:none;margin:0 0 12px;padding:10px 14px;border-radius:10px;background:rgba(231,76,60,.12);color:#c0392b;font-size:13.5px"></div>
+  <div id="dashEmptyNotice" style="display:none;margin:0 0 12px;padding:10px 14px;border-radius:10px;background:rgba(243,156,18,.14);color:#b9770e;font-size:13.5px"></div>
+
+  <!-- Live totals strip -->
+  <section class="v-card" id="dashTotals" style="display:flex;flex-wrap:wrap;gap:24px;padding:16px;margin-bottom:18px"></section>
+
+  <!-- KPI cards -->
+  <section class="v-grid v-kpis" id="kpiGrid" style="margin-bottom:22px;gap:18px">
+    <a class="v-kpi blue" id="kpiBooks" href="ledger.html" style="text-decoration:none;color:inherit;padding:22px;min-height:130px">
+      <div class="v-kpi-ico"><i data-lucide="book-open"></i></div>
+      <div class="lbl">Total Books</div><div class="val" style="font-size:2.1rem">0</div>
+      <div class="delta"><i data-lucide="trending-up" style="width:14px;height:14px"></i><span>–</span></div>
+    </a>
+    <a class="v-kpi green" id="kpiSchools" href="schools.html" style="text-decoration:none;color:inherit;padding:22px;min-height:130px">
+      <div class="v-kpi-ico"><i data-lucide="school"></i></div>
+      <div class="lbl">Schools</div><div class="val" style="font-size:2.1rem">0</div>
+      <div class="delta"><i data-lucide="check-circle-2" style="width:14px;height:14px"></i><span>–</span></div>
+      <div id="kpiSchoolsExtra" style="margin-top:8px;font-size:12px;font-weight:600;color:var(--text-muted)"></div>
+    </a>
+    <a class="v-kpi amber" id="kpiBalance" href="reports.html" style="text-decoration:none;color:inherit;padding:22px;min-height:130px">
+      <div class="v-kpi-ico"><i data-lucide="package"></i></div>
+      <div class="lbl">Balance Stock</div><div class="val" style="font-size:2.1rem">0</div>
+      <div class="delta"><i data-lucide="repeat" style="width:14px;height:14px"></i><span>–</span></div>
+    </a>
+    <a class="v-kpi red" id="kpiLow" href="reports.html#low-stock" style="text-decoration:none;color:inherit;padding:22px;min-height:130px">
+      <div class="v-kpi-ico"><i data-lucide="alert-triangle"></i></div>
+      <div class="lbl">Low Stock</div><div class="val" style="font-size:2.1rem">0</div>
+      <div class="delta"><i data-lucide="alert-circle" style="width:14px;height:14px"></i><span>–</span></div>
+    </a>
+  </section>
+
+  <!-- Charts: common to every role -->
+  <section class="v-grid v-charts" style="margin-bottom:18px">
+    <div class="v-card">
+      <h3>Books issued vs received, by month</h3>
+      <p style="margin:-6px 0 8px;font-size:12px;color:var(--text-muted)">X axis: month · Y axis: number of books</p>
+      <div style="height:280px"><canvas id="trendChart"></canvas></div>
+    </div>
+    <div class="v-card">
+      <h3>Books issued vs school</h3>
+      <p style="margin:-6px 0 8px;font-size:12px;color:var(--text-muted)">Each bar is one school's issued books</p>
+      <div class="v-bars" id="schoolBars"></div>
+    </div>
+  </section>
+
+  <!-- Recent activity and quick actions -->
+  <section class="v-grid v-lower" style="margin-bottom:18px">
+    <div class="v-card" id="activityCard">
+      <h3>Recent Activity</h3>
+      <ul class="v-act" id="activityList"></ul>
+    </div>
+    <div class="v-card" id="quickActionsCard" style="padding:22px">
+      <h3 style="font-size:18px">Quick Actions</h3>
+      <div class="v-qa" style="gap:14px">
+        <a href="ledger.html" style="padding:16px;font-size:15px"><span class="ico"><i data-lucide="plus-circle"></i></span>Add Stock</a>
+        <a href="distribution.html" style="padding:16px;font-size:15px"><span class="ico"><i data-lucide="send"></i></span>Distribute</a>
+        <a href="transfers.html" style="padding:16px;font-size:15px"><span class="ico"><i data-lucide="repeat"></i></span>Transfer Stock</a>
+        <a href="reports.html" style="padding:16px;font-size:15px"><span class="ico"><i data-lucide="bar-chart-3"></i></span>Reports</a>
+        <a href="schools.html" style="padding:16px;font-size:15px"><span class="ico"><i data-lucide="school"></i></span>Schools</a>
+        <a href="todo.html" style="padding:16px;font-size:15px"><span class="ico"><i data-lucide="list-checks"></i></span>To-do</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Presence card -->
+  <section id="presenceCard" style="margin-bottom:18px;display:none">
+    <div class="v-card" id="presenceCardInner"></div>
+  </section>
+
+  <!-- School cards: common to every role -->
+  <section>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h3 style="margin:0;font-size:16px;font-weight:650">Schools Overview</h3>
+      <a id="schoolsViewAll" href="schools.html" onclick="event.preventDefault();event.stopPropagation();window.location.assign('schools.html');return false;" style="position:relative;z-index:5;display:inline-flex;align-items:center;gap:4px;padding:8px 12px;border-radius:8px;font-size:13.5px;font-weight:600;color:var(--v-primary);text-decoration:none;cursor:pointer">View all →</a>
+    </div>
+    <div class="v-schools" id="schoolCards"></div>
+  </section>
+</main>
+
+<div id="toast-container"></div>
+<script src="welcome.js?v=2.0"></script>
+<script src="app.js?v=11.0"></script>
+<script src="avatars.js?v=1.0"></script>
+<script src="sounds.js?v=1.0"></script>
+<script src="shell.js?v=12.1"></script>
+<script src="dashboard-ui.js?v=10.0"></script>
+<script src="chatbot.js?v=10.0"></script>
+</body>
+</html>

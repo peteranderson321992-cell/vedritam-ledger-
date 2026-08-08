@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - Vedritam</title>
+    <script>(function(){try{var t=localStorage.getItem('v_theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+<link rel="stylesheet" href="style.css?v=11.1">
+    <link rel="stylesheet" href="theme.css?v=12.1">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body data-page="users">
+    <header class="app-header">
+        <div class="header-left">
+            <div class="header-title">User Management</div>
+        </div>
+        <div class="header-right">
+            <a href="dashboard.html" class="btn btn-secondary" style="background: rgba(255,255,255,0.2); color:white; border:none;">Dashboard</a>
+        </div>
+    </header>
+    <main class="main-content" style="max-width: 1200px; margin: 0 auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; gap:1rem; flex-wrap:wrap;">
+            <div>
+                <h2 style="margin:0;">System Users</h2>
+                <p class="muted-small">Hierarchy: Super Admin &rsaquo; Admin &rsaquo; Staff &rsaquo; User. Admins create Admin, Staff and User accounts inside their own schools; Staff create User accounts.</p>
+            </div>
+            <button class="btn btn-primary staff-only" id="btnNewUser" onclick="App.users.openCreate()">+ New User</button>
+        </div>
+
+        <div id="pendingBanner" class="badge badge-pending" style="display:none; margin-bottom:1rem; padding:8px 14px; font-size:0.82rem;"></div>
+
+        <div class="filter-bar">
+            <input type="search" id="userSearch" class="form-control" placeholder="Search username, school, email...">
+            <select id="userStatusFilter" class="form-control">
+                <option value="">All statuses</option>
+                <option value="Pending">Pending approval</option>
+                <option value="Active">Active</option>
+                <option value="Disabled">Disabled</option>
+            </select>
+            <button class="btn btn-secondary" onclick="App.users.load()">Refresh</button>
+        </div>
+
+        <div class="table-wrapper" style="height: auto;">
+            <table class="spreadsheet" style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Role</th>
+                        <th>School</th>
+                        <th>Email</th>
+                        <th>Last Login</th>
+                        <th>Online</th>
+                        <th>Status</th>
+                        <th class="col-action">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="usersBody">
+                    <tr><td colspan="8" style="padding:20px; text-align:center;">Loading users...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Create user -->
+    <div class="modal-overlay" id="modalNewUser">
+        <div class="modal-content modal-wide">
+            <h3>Create New User</h3>
+            <form id="formNewUser" onsubmit="App.users.submitCreate(event)">
+                <div class="modal-grid">
+                <div class="field">
+                    <label>Username <span style="color:red">*</span></label>
+                    <input type="text" id="newUserName" class="form-control" required minlength="3">
+                </div>
+                <div class="field">
+                    <label>Contact Person</label>
+                    <input type="text" id="newUserFullName" class="form-control">
+                </div>
+                <div class="field">
+                    <label>Email</label>
+                    <input type="email" id="newUserEmail" class="form-control">
+                </div>
+                <div class="field">
+                    <label>Role</label>
+                    <select id="newUserRole" class="form-control">
+                        <option value="user">User</option>
+                        <option value="staff">Staff</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Assigned School</label>
+                    <select id="newUserSchool" class="form-control"></select>
+                    <div class="muted-small" style="margin-top:4px;">An account only sees the classes and ledger of its own school.</div>
+                </div>
+                <div class="field">
+                    <label>Status</label>
+                    <select id="newUserStatus" class="form-control">
+                        <option value="Active">Active</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Disabled">Disabled</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Password <span style="font-weight:400;color:var(--text-muted)">(leave blank to auto-generate)</span></label>
+                    <input type="password" id="newUserPassword" class="form-control" autocomplete="new-password" placeholder="At least 8 characters">
+                </div>
+                <div class="field">
+                    <label>Confirm Password</label>
+                    <input type="password" id="newUserPassword2" class="form-control" autocomplete="new-password" placeholder="Repeat the password">
+                </div>
+                </div>
+                <p style="font-size:.78rem;color:var(--text-muted);margin:.2rem 0 0">
+                    Password must contain an uppercase letter, a lowercase letter and a number.</p>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="App.ui.closeModal('modalNewUser')">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btnSaveUser">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit user -->
+    <div class="modal-overlay" id="modalEditUser">
+        <div class="modal-content modal-wide">
+            <h3 id="editUserTitle">Edit User</h3>
+            <form id="formEditUser" onsubmit="App.users.submitEdit(event)">
+                <div class="modal-grid">
+                <div class="field">
+                    <label>Contact Person</label>
+                    <input type="text" id="editUserFullName" class="form-control">
+                </div>
+                <div class="field">
+                    <label>Email</label>
+                    <input type="email" id="editUserEmail" class="form-control">
+                </div>
+                <div class="field">
+                    <label>Role</label>
+                    <select id="editUserRole" class="form-control">
+                        <option value="user">User</option>
+                        <option value="staff">Staff</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Assigned School</label>
+                    <select id="editUserSchool" class="form-control"></select>
+                </div>
+                <div class="field">
+                    <label>Status</label>
+                    <select id="editUserStatus" class="form-control">
+                        <option value="Active">Active</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Disabled">Disabled</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>New Password <span style="font-weight:400;color:var(--text-muted)">(leave blank to keep the current one)</span></label>
+                    <input type="password" id="editUserPassword" class="form-control" autocomplete="new-password" placeholder="Set a new password">
+                </div>
+                <div class="field">
+                    <label>Confirm New Password</label>
+                    <input type="password" id="editUserPassword2" class="form-control" autocomplete="new-password" placeholder="Repeat the new password">
+                </div>
+                </div>
+                <p id="editUserPwdNote" style="font-size:.78rem;color:var(--text-muted);margin:.2rem 0 0">
+                    Changing the password signs that account out of every device.</p>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="App.ui.closeModal('modalEditUser')">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btnUpdateUser">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete user -->
+    <div class="modal-overlay" id="modalDeleteUser">
+        <div class="modal-content">
+            <h3 style="color: var(--danger);">Delete User</h3>
+            <p>Permanently remove the account <strong id="lblDeleteUser"></strong>? Their past ledger entries and activity records are kept.</p>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="App.ui.closeModal('modalDeleteUser')">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="App.users.executeDelete()">Delete Permanently</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+    <script src="app.js?v=11.0"></script>
+<script src="avatars.js?v=1.0"></script>
+<script src="sounds.js?v=1.0"></script>
+<script src="shell.js?v=12.1"></script>
+</body>
+</html>

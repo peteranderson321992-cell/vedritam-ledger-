@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messages - Vedritam</title>
+<script>(function(){try{var t=localStorage.getItem('v_theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+<link rel="stylesheet" href="style.css?v=11.1">
+<link rel="stylesheet" href="theme.css?v=12.1">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+  /* WhatsApp-style messenger: conversation rail on the left, chat on the right. */
+  .msg-grid{display:grid;grid-template-columns:330px 1fr;gap:0;align-items:stretch;
+            border:1px solid var(--v-border,#e2e8f0);border-radius:14px;overflow:hidden;
+            background:var(--v-surface,#fff);height:calc(100vh - 170px);min-height:520px}
+  @media(max-width:900px){.msg-grid{grid-template-columns:1fr;height:auto}}
+  .mg-card{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  .mg-card.rail{border-right:1px solid var(--v-border,#e2e8f0)}
+  .mg-head{padding:10px 14px;border-bottom:1px solid var(--v-border,#e2e8f0);display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--v-surface,#fff)}
+  .mg-head h3{margin:0;font-size:15px;font-weight:650}
+  .mg-search{width:100%;padding:8px 12px;border:1px solid var(--v-border,#e2e8f0);border-radius:999px;background:transparent;color:inherit;font:inherit;font-size:13px}
+  .mg-list{flex:1;overflow:auto;min-height:0}
+  .mg-item{display:flex;align-items:center;gap:11px;width:100%;text-align:left;border:0;background:none;color:inherit;font:inherit;padding:10px 14px;border-bottom:1px solid var(--v-border,#e2e8f0);cursor:pointer}
+  .mg-item:hover{background:var(--v-sidebar-hover,#f1f5f9)}
+  .mg-item.active{background:var(--v-primary-soft,#eff6ff)}
+  .mg-item .mg-body{flex:1;min-width:0}
+  .mg-item .mg-top{display:flex;align-items:baseline;gap:8px}
+  .mg-item b{flex:1;min-width:0;font-size:13.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mg-item .mg-when{font-size:11px;color:var(--v-text-muted,#64748b);flex:0 0 auto}
+  .mg-item .mg-prev{display:flex;align-items:center;gap:6px;margin-top:2px}
+  .mg-item .mg-prev span{flex:1;min-width:0;font-size:12px;color:var(--v-text-muted,#64748b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mg-badge{flex:0 0 auto;background:#25D366;color:#04310f;border-radius:999px;font-size:11px;font-weight:700;padding:1px 7px}
+
+  /* Avatars: one per direct-message person, one single channel avatar for
+     announcements (like a WhatsApp channel), one per group. */
+  .mg-av{flex:0 0 44px;width:44px;height:44px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+    font-size:15px;font-weight:700;color:#fff;letter-spacing:.02em;overflow:hidden;user-select:none}
+  .mg-av.sm{flex:0 0 34px;width:34px;height:34px;font-size:12.5px}
+  .mg-av.ann{background:#F59E0B;color:#3a2500;font-size:19px}
+  .mg-av.group{background:#64748B;font-size:19px}
+  .mg-kind{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:1px 6px;border-radius:6px;background:rgba(37,99,235,.14);color:#2563EB;margin-right:6px}
+  .mg-kind.announcement{background:rgba(245,158,11,.16);color:#B45309}
+  .mg-kind.group{background:rgba(22,163,74,.14);color:#15803D}
+  .mg-locked{display:block;font-style:italic;opacity:.75}
+  .mg-e2ee{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;
+    background:rgba(22,163,74,.12);color:#15803D;font-size:12px;font-weight:600}
+
+
+  /* Chat area - big, scrollable, subtly patterned like a chat app. */
+  .mg-thread{flex:1;min-height:0;overflow:auto;padding:18px 20px;display:flex;flex-direction:column;gap:6px;
+    background-color:var(--v-bg,#f2efe8);
+    background-image:radial-gradient(rgba(0,0,0,.045) 1px,transparent 1px);
+    background-size:18px 18px}
+  [data-theme="dark"] .mg-thread{background-color:#0b141a;background-image:radial-gradient(rgba(255,255,255,.045) 1px,transparent 1px)}
+  .bubble{position:relative;max-width:65%;padding:7px 11px 6px;border-radius:10px;background:#fff;
+    box-shadow:0 1px 1px rgba(0,0,0,.12);font-size:14px;line-height:1.42;word-break:break-word;align-self:flex-start;
+    border-top-left-radius:2px;color:#111b21}
+  .bubble.mine{align-self:flex-end;background:#d9fdd3;border-top-left-radius:10px;border-top-right-radius:2px}
+  [data-theme="dark"] .bubble{background:#202c33;color:#e9edef}
+  [data-theme="dark"] .bubble.mine{background:#005c4b}
+  .bubble+.bubble{margin-top:2px}
+  .bubble .meta{display:block;margin-top:3px;font-size:10.5px;opacity:.65;text-align:right}
+  .bubble .who{font-size:11.5px;font-weight:700;color:#25D366;display:block;margin-bottom:2px}
+  .bubble a.att{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font-size:12.5px;font-weight:600;text-decoration:underline;color:inherit}
+  .bubble img.att-img{max-width:240px;border-radius:8px;margin-top:6px;display:block}
+  .mg-daysep{align-self:center;background:rgba(0,0,0,.08);color:inherit;opacity:.75;font-size:11.5px;padding:2px 10px;border-radius:999px;margin:6px 0}
+  .mg-typing{padding:0 18px 4px;font-size:12px;color:var(--v-text-muted,#64748b);min-height:16px;background:var(--v-bg,#f2efe8)}
+  [data-theme="dark"] .mg-typing{background:#0b141a}
+
+  /* Compose bar: small round icon buttons, roomy input. */
+  .mg-compose{border-top:1px solid var(--v-border,#e2e8f0);padding:8px 12px;display:flex;gap:8px;align-items:flex-end;background:var(--v-surface,#fff)}
+  .mg-compose textarea{flex:1;resize:none;padding:10px 14px;border:1px solid var(--v-border,#e2e8f0);border-radius:20px;
+    background:var(--v-bg,#f8fafc);color:inherit;font:inherit;font-size:14px;line-height:1.4;min-height:42px;max-height:150px;overflow-y:auto}
+  .mg-icon{width:38px;height:38px;flex:0 0 38px;border-radius:50%;border:1px solid var(--v-border,#e2e8f0);
+    background:transparent;color:var(--v-text-muted,#64748b);display:inline-flex;align-items:center;justify-content:center;
+    cursor:pointer;padding:0;font-size:16px;line-height:1}
+  .mg-icon:hover{background:var(--v-sidebar-hover,#f1f5f9)}
+  .mg-icon.send{background:#25D366;border-color:#25D366;color:#04310f;font-size:17px}
+  .mg-icon.send:disabled{opacity:.6;cursor:default}
+  .mg-empty{padding:28px;text-align:center;color:var(--v-text-muted,#64748b);font-size:13.5px}
+  .mg-file{font-size:12px;color:var(--v-text-muted,#64748b)}
+  .mg-hit{padding:10px 14px;border-bottom:1px solid var(--v-border,#e2e8f0);font-size:13px;cursor:pointer}
+  .mg-hit:hover{background:var(--v-sidebar-hover,#f1f5f9)}
+  .mg-hit em{font-style:normal;background:rgba(245,158,11,.28);border-radius:3px}
+
+  /* In-page dialogs replace the browser prompt() popups. */
+  .mg-modal{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:900;padding:16px}
+  .mg-modal.open{display:flex}
+  .mg-modal-box{background:var(--v-surface,#fff);color:var(--v-text,inherit);border:1px solid var(--v-border,#e2e8f0);
+    border-radius:14px;width:min(440px,100%);padding:20px;box-shadow:0 18px 50px rgba(0,0,0,.28)}
+  .mg-modal-box h3{margin:0 0 4px;font-size:16px;font-weight:700}
+  .mg-modal-box p.hint{margin:0 0 14px;font-size:12.5px;color:var(--v-text-muted,#64748b)}
+  .mg-modal-box label{display:block;font-size:12.5px;font-weight:600;margin:10px 0 5px}
+  .mg-modal-box input,.mg-modal-box textarea{width:100%;padding:9px 11px;border:1px solid var(--v-border,#e2e8f0);
+    border-radius:9px;background:transparent;color:inherit;font:inherit;font-size:13.5px}
+  .mg-modal-box textarea{resize:vertical;min-height:90px}
+  .mg-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+  .mg-modal-actions .v-btn{width:auto;flex:0 0 auto}
+
+  /* Photos, stickers, file cards, call bar and the info panel. */
+  .mg-av img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+  .mg-av.xs{flex:0 0 20px;width:20px;height:20px;font-size:9px}
+  .bubble .who{display:flex;align-items:center;gap:6px}
+  .mg-sticker{display:block;font-size:44px;line-height:1.1}
+  .att-card{display:flex;align-items:center;gap:9px;margin-top:7px;padding:8px 10px;border-radius:10px;
+    background:rgba(0,0,0,.06)}
+  [data-theme="dark"] .att-card{background:rgba(255,255,255,.08)}
+  .att-card .att-ic{font-size:20px}
+  .att-card .att-meta{flex:1;min-width:0;display:flex;flex-direction:column}
+  .att-card .att-meta b{font-size:12.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .att-card .att-meta i{font-style:normal;font-size:11px;opacity:.7}
+  .att-btn{border:0;background:rgba(0,0,0,.08);border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:14px;color:inherit}
+  .att-btn:hover{background:rgba(0,0,0,.16)}
+  [data-theme="dark"] .att-btn{background:rgba(255,255,255,.12)}
+  .mg-pending{display:inline-flex;align-items:center;gap:7px;background:var(--v-primary-soft,#eff6ff);
+    padding:4px 10px;border-radius:999px;font-size:12px}
+  .mg-pending i{font-style:normal;opacity:.7}
+  .mg-pending button{border:0;background:none;cursor:pointer;font-size:15px;color:inherit}
+  .mg-callbar{display:flex;gap:6px;margin-left:auto}
+  .mg-headbtn{width:34px;height:34px;border-radius:50%;border:1px solid var(--v-border,#e2e8f0);background:transparent;
+    color:var(--v-text-muted,#64748b);cursor:pointer;font-size:15px}
+  .mg-headbtn:hover{background:var(--v-sidebar-hover,#f1f5f9)}
+  .mg-info{position:fixed;top:0;right:0;bottom:0;width:min(360px,92vw);background:var(--v-surface,#fff);
+    border-left:1px solid var(--v-border,#e2e8f0);box-shadow:-14px 0 40px rgba(0,0,0,.14);z-index:1000;
+    transform:translateX(102%);transition:transform .22s ease;display:flex;flex-direction:column}
+  .mg-info.open{transform:none}
+  .mg-info-top{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--v-border,#e2e8f0)}
+  .mg-info-top h3{margin:0;font-size:15px;font-weight:700;flex:1}
+  .mg-info-body{flex:1;overflow:auto;padding:16px;text-align:center}
+  .mg-info-face{position:relative;width:110px;height:110px;margin:0 auto 10px}
+  .mg-info-face img,.mg-info-face span{width:110px;height:110px;border-radius:50%;object-fit:cover;display:flex;
+    align-items:center;justify-content:center;color:#fff;font-size:34px;font-weight:700}
+  .mg-info-cam{position:absolute;right:0;bottom:0;width:34px;height:34px;border-radius:50%;border:0;
+    background:#25D366;color:#04310f;cursor:pointer;font-size:15px}
+  .mg-info-body h4{margin:6px 0 2px;font-size:17px}
+  .mg-info-body p{margin:0 0 14px;font-size:12.5px;color:var(--v-text-muted,#64748b)}
+  .mg-person{display:flex;align-items:center;gap:10px;text-align:left;padding:9px 4px;border-top:1px solid var(--v-border,#e2e8f0)}
+  .mg-person-body{min-width:0;display:flex;flex-direction:column}
+  .mg-person-body b{font-size:13.5px}
+  .mg-person-body span{font-size:11.5px;color:var(--v-text-muted,#64748b)}
+  .mg-person-body .mg-on{color:#16A34A;font-weight:650}
+  .mg-you{font-size:10px;background:rgba(37,99,235,.14);color:#2563EB;border-radius:6px;padding:1px 5px}
+
+  /* ---- Dark mode corrections -------------------------------------------
+     These use html[data-theme="dark"] so they beat the generic rules in
+     theme.css, which were washing out the chat bubbles, the day separators
+     and the encryption badge. */
+  html[data-theme="dark"] .msg-grid,
+  html[data-theme="dark"] .mg-head,
+  html[data-theme="dark"] .mg-compose{background:#111b21;border-color:#2a3942}
+  html[data-theme="dark"] .mg-card.rail,
+  html[data-theme="dark"] .mg-item,
+  html[data-theme="dark"] .mg-hit,
+  html[data-theme="dark"] .mg-search,
+  html[data-theme="dark"] .mg-headbtn,
+  html[data-theme="dark"] .mg-icon{border-color:#2a3942}
+  html[data-theme="dark"] .mg-item:hover,
+  html[data-theme="dark"] .mg-hit:hover,
+  html[data-theme="dark"] .mg-icon:hover{background:#1f2c34}
+  html[data-theme="dark"] .mg-item.active{background:#2a3942}
+  html[data-theme="dark"] .mg-compose textarea{background:#2a3942;border-color:#2a3942;color:#e9edef}
+  html[data-theme="dark"] .mg-compose textarea::placeholder{color:#8696a0}
+  html[data-theme="dark"] .mg-search{background:#202c33;color:#e9edef}
+  html[data-theme="dark"] .bubble{background:#202c33;color:#e9edef;box-shadow:0 1px 1px rgba(0,0,0,.4)}
+  html[data-theme="dark"] .bubble.mine{background:#005c4b;color:#e9edef}
+  html[data-theme="dark"] .bubble .meta{opacity:.75}
+  html[data-theme="dark"] .bubble .who{color:#53bdeb}
+  html[data-theme="dark"] .mg-daysep{background:#182229;color:#8696a0;opacity:1}
+  html[data-theme="dark"] .mg-e2ee{background:rgba(37,211,102,.16);color:#7ee2a8}
+  html[data-theme="dark"] .mg-kind{background:rgba(83,189,235,.18);color:#8ed3f0}
+  html[data-theme="dark"] .mg-kind.announcement{background:rgba(245,158,11,.2);color:#f6c66b}
+  html[data-theme="dark"] .mg-kind.group{background:rgba(37,211,102,.16);color:#7ee2a8}
+  html[data-theme="dark"] .att-card{background:rgba(255,255,255,.08)}
+  html[data-theme="dark"] .att-btn{background:rgba(255,255,255,.12);color:#e9edef}
+  html[data-theme="dark"] .att-btn:hover{background:rgba(255,255,255,.22)}
+  html[data-theme="dark"] .mg-pending{background:#2a3942;color:#e9edef}
+  html[data-theme="dark"] .mg-hit em{background:rgba(245,158,11,.35);color:#fde68a}
+  html[data-theme="dark"] .mg-modal-box{background:#111b21;border-color:#2a3942;color:#e9edef}
+  html[data-theme="dark"] .mg-modal-box input,
+  html[data-theme="dark"] .mg-modal-box textarea{background:#202c33;border-color:#2a3942;color:#e9edef}
+  html[data-theme="dark"] .mg-empty,
+  html[data-theme="dark"] .mg-file,
+  html[data-theme="dark"] .mg-typing{color:#8696a0}
+  /* The green sender name was unreadable on the light bubble too. */
+  .bubble .who{color:#0b7f4e}
+</style>
+</head>
+<body data-page="messages">
+<main class="main-content">
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:12px">
+    <div>
+      <h1 class="v-page-title">Messages</h1>
+      <p class="v-page-sub">Message anyone by username — your conversations follow you on every device.</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="v-btn ghost" id="mgNewDm" type="button" style="width:auto;padding:7px 14px;font-size:13px">New message</button>
+      <button class="v-btn ghost staff-only" id="mgNewGroup" type="button" style="width:auto;padding:7px 14px;font-size:13px">New group</button>
+      <button class="v-btn admin-only" id="mgAnnounce" type="button" style="width:auto;padding:7px 14px;font-size:13px">Announcement</button>
+    </div>
+  </div>
+
+  <div class="msg-grid">
+    <section class="mg-card rail">
+      <div class="mg-head" style="display:block">
+        <input class="mg-search" id="mgSearch" type="search" placeholder="Search all messages...">
+      </div>
+      <div class="mg-list" id="mgList"><div class="mg-empty">Loading conversations...</div></div>
+    </section>
+
+    <section class="mg-card">
+      <div class="mg-head">
+        <span class="mg-av sm" id="mgAvatar" style="display:none;cursor:pointer" onclick="var b=document.getElementById('mgInfoBtn');if(b)b.click()"></span>
+        <h3 id="mgTitle" style="cursor:pointer" onclick="var b=document.getElementById('mgInfoBtn');if(b)b.click()">Select a conversation</h3>
+
+        <span id="mgMeta" style="font-size:12px;color:var(--v-text-muted)"></span>
+        <span class="mg-callbar" id="mgCallBar" style="display:none">
+          <button class="mg-headbtn" id="mgAudioCall" type="button" title="Voice call">&#128222;</button>
+          <button class="mg-headbtn" id="mgVideoCall" type="button" title="Video call">&#127909;</button>
+          <button class="mg-headbtn" id="mgShareCall" type="button" title="Share your screen">&#128421;</button>
+        </span>
+        <button class="mg-headbtn" id="mgInfoBtn" type="button" title="Conversation details" style="display:none;margin-left:6px">&#8505;</button>
+      </div>
+      <div class="mg-thread" id="mgThread"><div class="mg-empty">Pick a conversation on the left, or start a new one.</div></div>
+      <div class="mg-typing" id="mgTyping"></div>
+      <div class="mg-file" id="mgFileName" style="padding:0 16px 4px"></div>
+      <form class="mg-compose" id="mgForm" style="display:none">
+        <label class="mg-icon" title="Attach a file" aria-label="Attach a file">
+          &#128206;<input type="file" id="mgFile" hidden accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.csv,.xlsx,.xls,.doc,.docx,.txt">
+        </label>
+        <button class="mg-icon" type="button" id="mgEmoji" title="Emoji, stickers and GIFs" aria-label="Emoji, stickers and GIFs">&#128512;</button>
+        <button class="mg-icon" type="button" id="mgCamera" title="Take a photo" aria-label="Take a photo">&#128247;</button>
+        <textarea id="mgInput" rows="1" placeholder="Type a message" maxlength="5000"></textarea>
+        <button class="mg-icon send" type="submit" id="mgSend" title="Send" aria-label="Send">&#10148;</button>
+      </form>
+    </section>
+  </div>
+</main>
+
+<!-- New direct message -->
+<div class="mg-modal" id="mgDmModal">
+  <div class="mg-modal-box">
+    <h3>New message</h3>
+    <p class="hint">Start a direct chat with another account.</p>
+    <form id="mgDmForm">
+      <label for="mgDmUser">Username</label>
+      <input id="mgDmUser" autocomplete="off" placeholder="e.g. teacher1" required>
+      <div class="mg-modal-actions">
+        <button type="button" class="v-btn ghost" data-close="mgDmModal">Cancel</button>
+        <button type="submit" class="v-btn">Start chat</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- New group -->
+<div class="mg-modal" id="mgGroupModal">
+  <div class="mg-modal-box">
+    <h3>New group</h3>
+    <p class="hint">Create a group chat for a school or a team.</p>
+    <form id="mgGroupForm">
+      <label for="mgGroupName">Group name</label>
+      <input id="mgGroupName" placeholder='e.g. "DAV BGPM staff"' required>
+      <label for="mgGroupMembers">Members</label>
+      <input id="mgGroupMembers" placeholder="Comma separated usernames">
+      <label for="mgGroupPhotoNew">Group photo (optional)</label>
+      <input type="file" id="mgGroupPhotoNew" accept="image/*">
+      <div class="mg-modal-actions">
+        <button type="button" class="v-btn ghost" data-close="mgGroupModal">Cancel</button>
+        <button type="submit" class="v-btn">Create group</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Announcement -->
+<div class="mg-modal" id="mgAnnModal">
+  <div class="mg-modal-box">
+    <h3>Announcement</h3>
+    <p class="hint">Sent to every active account. Only admins can post here.</p>
+    <form id="mgAnnForm">
+      <label for="mgAnnTitle">Title</label>
+      <input id="mgAnnTitle" placeholder="e.g. Maintenance" required>
+      <label for="mgAnnBody">Message</label>
+      <textarea id="mgAnnBody" placeholder="What do you want everyone to know?" required></textarea>
+      <div class="mg-modal-actions">
+        <button type="button" class="v-btn ghost" data-close="mgAnnModal">Cancel</button>
+        <button type="submit" class="v-btn">Send announcement</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Conversation details: members, their photo and when they were last online -->
+<aside class="mg-info" id="mgInfo">
+  <div class="mg-info-top">
+    <h3 id="mgInfoTitle">Group info</h3>
+    <button class="mg-headbtn" id="mgInfoClose" type="button" title="Close">&times;</button>
+  </div>
+  <div class="mg-info-body">
+    <div id="mgInfoHead"></div>
+    <div style="text-align:left;font-size:12px;font-weight:700;opacity:.6;margin:12px 0 2px">MEMBERS</div>
+    <div id="mgInfoMembers"></div>
+  </div>
+</aside>
+
+<div id="toast-container"></div>
+<script src="app.js?v=11.0"></script>
+<script src="avatars.js?v=1.0"></script>
+<script src="sounds.js?v=1.0"></script>
+<script src="shell.js?v=12.1"></script>
+<script src="chatkit.js?v=1.0"></script>
+<script src="calls.js?v=1.0"></script>
+<script src="e2ee.js?v=10.0"></script>
+<script src="messages.js?v=14.0"></script>
+<script src="chatbot.js?v=10.0"></script>
+</body>
+</html>

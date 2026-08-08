@@ -1,0 +1,1 @@
+{"rooms": {"8740e113e62a": {"id": "8740e113e62a", "mode": "audio", "host": "admin", "started": "2026-08-08 20:38:07", "members": {"admin": {"name": "admin", "at": 1786201687.2830577}}}}, "mail": {"tester1": [{"kind": "ring", "conversation_id": "8740e113e62a", "from": "admin", "mode": "audio", "id": "930cf66275a5", "epoch": 1786201687.2831306}]}}
