@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vendors - Vedritam</title>
+<script>(function(){try{var t=localStorage.getItem('v_theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+<link rel="stylesheet" href="style.css?v=11.1">
+<link rel="stylesheet" href="theme.css?v=12.1">
+<link rel="stylesheet" href="modules.css?v=1.0">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body data-page="vendors">
+<main class="main-content">
+  <div class="vm-page-head">
+    <div>
+      <h1 class="v-page-title">Vendors &amp; suppliers</h1>
+      <p class="v-page-sub">Keep supplier contacts, GST and bank details in one place. Every purchase order, invoice and payment links back to a vendor here. Press <b>n</b> for a new vendor, <b>/</b> to search.</p>
+    </div>
+    <div class="vm-actions">
+      <button class="vm-btn primary" id="btnNew">+ New vendor</button>
+    </div>
+  </div>
+
+  <div class="vm-stats" id="stats"></div>
+
+  <div class="vm-card" id="formCard" hidden>
+    <h3 id="formTitle">New vendor</h3>
+    <form id="vendorForm">
+      <div class="vm-field-row">
+        <div><label class="vm-label">Vendor name *</label><input class="vm-input" id="f_name" required maxlength="120"></div>
+        <div><label class="vm-label">Contact number</label><input class="vm-input" id="f_contact" maxlength="40"></div>
+        <div><label class="vm-label">Email</label><input class="vm-input" id="f_email" type="email" maxlength="120"></div>
+        <div><label class="vm-label">GSTIN</label><input class="vm-input" id="f_gst" maxlength="20" placeholder="33ABCDE1234F1Z5"></div>
+        <div><label class="vm-label">PAN</label><input class="vm-input" id="f_pan" maxlength="15"></div>
+        <div><label class="vm-label">Payment terms</label><div id="f_terms"></div></div>
+        <div><label class="vm-label">Bank name</label><input class="vm-input" id="f_bank_name" maxlength="80"></div>
+        <div><label class="vm-label">Account number</label><input class="vm-input" id="f_bank_account" maxlength="40"></div>
+        <div><label class="vm-label">IFSC</label><input class="vm-input" id="f_bank_ifsc" maxlength="20"></div>
+        <div><label class="vm-label">Status</label><select class="vm-input" id="f_status"><option>Active</option><option>Inactive</option></select></div>
+      </div>
+      <div style="margin-top:12px"><label class="vm-label">Address</label><textarea class="vm-input" id="f_address" rows="2" maxlength="300"></textarea></div>
+      <div class="vm-actions" style="margin-top:14px">
+        <button type="submit" class="vm-btn primary" id="btnSave">Save vendor</button>
+        <button type="button" class="vm-btn ghost" id="btnCancel">Cancel</button>
+      </div>
+      <p class="vm-hint">GSTIN is validated for the standard 15-character format when provided.</p>
+    </form>
+  </div>
+
+  <div class="vm-card"><div id="table"></div></div>
+</main>
+
+<script src="app.js?v=11.0"></script>
+<script src="avatars.js?v=1.0"></script>
+<script src="sounds.js?v=1.0"></script>
+<script src="shell.js?v=12.1"></script>
+<script src="vmodule.js?v=1.0"></script>
+<script>
+(function () {
+  var vendors = [], grid = null, editing = null, terms = null;
+  var GSTIN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+  var $ = function (id) { return document.getElementById(id); };
+
+  var columns = [
+    { key: 'vendorId', label: 'Code' },
+    { key: 'name', label: 'Vendor' },
+    { key: 'contact', label: 'Contact' },
+    { key: 'email', label: 'Email' },
+    { key: 'gst', label: 'GSTIN' },
+    { key: 'pan', label: 'PAN' },
+    { key: 'payment_terms', label: 'Terms' },
+    { key: 'bank_name', label: 'Bank' },
+    { key: 'bank_account', label: 'Account' },
+    { key: 'bank_ifsc', label: 'IFSC' },
+    { key: 'address', label: 'Address' },
+    { key: 'status', label: 'Status', render: function (v) { return VM.payBadge(v || 'Active'); } }
+  ];
+
+  function stats() {
+    var active = vendors.filter(function (v) { return (v.status || 'Active') === 'Active'; }).length;
+    var withGst = vendors.filter(function (v) { return v.gst; }).length;
+    $('stats').innerHTML =
+      '<div class="vm-stat"><span>Total vendors</span><strong>' + vendors.length + '</strong></div>' +
+      '<div class="vm-stat"><span>Active</span><strong>' + active + '</strong></div>' +
+      '<div class="vm-stat"><span>GST registered</span><strong>' + withGst + '</strong></div>';
+  }
+
+  function openForm(v) {
+    editing = v || null;
+    $('formTitle').textContent = v ? 'Edit ' + v.name : 'New vendor';
+    ['name','contact','email','gst','pan','bank_name','bank_account','bank_ifsc','address'].forEach(function (k) {
+      $('f_' + k).value = v ? (v[k] || '') : '';
+    });
+    $('f_status').value = v ? (v.status || 'Active') : 'Active';
+    if (terms) terms.set(v ? (v.payment_terms || '') : '');
+    $('formCard').hidden = false;
+    $('f_name').focus();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function details(v) {
+    VM.drawer(v.name, columns.map(function (c) {
+      return { label: c.label, value: c.render ? String(v[c.key] || '') : v[c.key] };
+    }), '<button class="vm-btn primary" id="dEdit">Edit</button>' +
+        '<button class="vm-btn danger" id="dDel">Delete</button>');
+    document.getElementById('dEdit').onclick = function () {
+      document.getElementById('vmDrawer').classList.remove('open'); openForm(v);
+    };
+    document.getElementById('dDel').onclick = function () {
+      if (!confirm('Delete vendor "' + v.name + '"? Existing orders keep their recorded vendor details.')) return;
+      VM.api('/vendors/' + encodeURIComponent(v.vendorId), 'DELETE').then(function () {
+        document.getElementById('vmDrawer').classList.remove('open');
+        VM.toast('Vendor deleted.'); load();
+      }).catch(function (e) { VM.toast(e.message, 'error'); });
+    };
+  }
+
+  function load() {
+    return VM.api('/vendors').then(function (res) {
+      vendors = Array.isArray(res) ? res : (res.data || []);
+      stats();
+      if (grid) grid.setRows(vendors);
+      else grid = VM.table($('table'), { id: 'vendors', title: 'Vendors', columns: columns, rows: vendors, onRow: details });
+    }).catch(function (e) { VM.toast(e.message, 'error'); });
+  }
+
+  function submit(e) {
+    e.preventDefault();
+    var payload = {
+      name: $('f_name').value.trim(),
+      contact: $('f_contact').value.trim(),
+      email: $('f_email').value.trim(),
+      gst: $('f_gst').value.trim().toUpperCase(),
+      pan: $('f_pan').value.trim().toUpperCase(),
+      payment_terms: terms ? terms.get() : '',
+      bank_name: $('f_bank_name').value.trim(),
+      bank_account: $('f_bank_account').value.trim(),
+      bank_ifsc: $('f_bank_ifsc').value.trim().toUpperCase(),
+      address: $('f_address').value.trim(),
+      status: $('f_status').value
+    };
+    if (!payload.name) { VM.toast('Vendor name is required.', 'error'); return; }
+    if (payload.gst && !GSTIN.test(payload.gst)) { VM.toast('That GSTIN does not look valid (15 characters, e.g. 33ABCDE1234F1Z5).', 'error'); return; }
+    var url = editing ? '/vendors/' + encodeURIComponent(editing.vendorId) : '/vendors';
+    VM.api(url, editing ? 'PUT' : 'POST', payload).then(function () {
+      VM.toast(editing ? 'Vendor updated.' : 'Vendor added.');
+      $('formCard').hidden = true; editing = null; $('vendorForm').reset(); load();
+    }).catch(function (e) { VM.toast(e.message, 'error'); });
+  }
+
+  function start() {
+    $('btnNew').onclick = function () { openForm(null); };
+    $('btnCancel').onclick = function () { $('formCard').hidden = true; editing = null; };
+    $('vendorForm').onsubmit = submit;
+    VM.options().then(function (o) {
+      terms = VM.select($('f_terms'), {
+        placeholder: 'Search payment terms…',
+        options: (o.paymentTerms || ['Net 30']).map(function (t) { return { value: t, label: t }; })
+      });
+    }).catch(function () {});
+    VM.shortcuts({ n: function () { openForm(null); } });
+    load();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+}());
+</script>
+</body>
+</html>

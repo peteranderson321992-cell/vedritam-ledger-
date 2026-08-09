@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ledger - Vedritam Stock System</title>
+    <script>(function(){try{var t=localStorage.getItem('v_theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+    <link rel="stylesheet" href="style.css?v=11.1">
+    <link rel="stylesheet" href="theme.css?v=12.1">
+    <link rel="stylesheet" href="modules.css?v=12.0">
+    <link rel="stylesheet" href="ledger.css?v=4.0">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body data-page="ledger">
+    <header class="app-header no-print">
+        <div class="header-left">
+            <img src="logo.png" alt="Vedritam Logo" onerror="this.style.display='none'">
+            <div class="header-title">Vedritam School Stock Ledger</div>
+        </div>
+        <div class="header-right">
+            <button class="logout-btn" onclick="vSignOut()">Logout</button>
+        </div>
+    </header>
+
+    <main class="ledger-container lgx">
+        <!-- Context strip: institution / academic year / class ------------------->
+        <section class="lgx-context no-print">
+            <div class="lgx-crumbs">
+                <a href="dashboard.html">Dashboard</a><span>/</span>
+                <a href="schools.html">Institutions</a><span>/</span>
+                <strong id="lblSchoolName">Loading…</strong><span>/</span>
+                <strong id="lblClassName">…</strong>
+                <span class="lgx-pill" id="lblClassStrength">Strength: …</span>
+                <span class="lgx-pill lgx-pill-muted" id="lblAcademicYear">Year: —</span>
+            </div>
+            <h2 class="lgx-title">Stock Ledger</h2>
+            <div class="lgx-context-grid">
+                <div class="lgx-field">
+                    <label for="ctxInstitution">Institution <span class="req">*</span></label>
+                    <div data-combo="ctxInstitution"></div>
+                </div>
+                <div class="lgx-field">
+                    <label for="ctxAcademicYear">Academic Year <span class="req">*</span></label>
+                    <div data-combo="ctxAcademicYear"></div>
+                </div>
+                <div class="lgx-field">
+                    <label for="ctxClass">Class <span class="req">*</span></label>
+                    <select id="ctxClass" class="form-control"></select>
+                </div>
+                <div class="lgx-field">
+                    <label for="ctxRequiredRule" title="Business rule used to derive Required Quantity">Required Qty Rule</label>
+                    <select id="ctxRequiredRule" class="form-control">
+                        <option value="strength">Student Strength</option>
+                        <option value="strengthMinusOpening">Student Strength − Opening Balance</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <!-- Ledger table ----------------------------------------------------->
+        <section class="lgx-card" id="registerCard">
+            <div class="lgx-card-head no-print">
+                <h3>Ledger Register</h3>
+                <div class="lgx-toolbar">
+                    <input type="text" id="ledgerSearch" class="form-control lgx-search" placeholder="Search ledger…">
+                    <select id="categorySelect" class="form-control">
+                        <option value="ALL">All Categories</option>
+                    </select>
+                    <select id="bookSelect" class="form-control" title="Add a catalogue item straight into the register"
+                            onchange="Ledger.pickBook(this.value)">
+                        <option value="">-- add a book --</option>
+                    </select>
+                    <button class="btn btn-secondary btn-sm" type="button" onclick="Ledger.openCatalog()">+ Add from Catalog</button>
+                    <button class="btn btn-secondary btn-sm" type="button" onclick="Ledger.addRecord()">+ Blank Row</button>
+                    <div class="lgx-menu">
+                        <button class="btn btn-secondary btn-sm" type="button" onclick="Ledger.toggleExportMenu()">Export ▾</button>
+                        <div class="lgx-menu-panel" id="exportMenu">
+                            <button type="button" onclick="Ledger.exportCSV()">Export to CSV</button>
+                            <button type="button" onclick="Ledger.exportExcel()">Export to Excel</button>
+                            <button type="button" onclick="Ledger.exportPDF()">Export to PDF</button>
+                            <button type="button" onclick="window.print()">Print</button>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" type="button" id="btnAddField"
+                            title="Add an extra ledger column" onclick="Ledger.openFieldModal()">+ Add Field</button>
+                    <button class="btn btn-secondary btn-sm" type="button" onclick="Ledger.fetchData()">⟳ Refresh</button>
+                    <button class="btn btn-danger btn-sm" type="button" id="btnDelete" title="Deletes the selected row, or the selected extra column when a column header is selected" onclick="Ledger.deleteSelection()">Delete</button>
+                    <button class="btn btn-primary btn-sm" type="button" id="btnSaveLedger" onclick="Ledger.saveChanges()">Save Changes (0)</button>
+                </div>
+            </div>
+            <div class="lgx-print-head">
+                <strong id="printTitle">Stock Ledger</strong>
+            </div>
+            <div class="table-wrapper lgx-scroll">
+                <table class="spreadsheet lgx-table" id="ledgerTable">
+                    <thead id="ledgerHead"></thead>
+                    <tbody id="ledgerBody"></tbody>
+                    <tfoot id="ledgerFoot"></tfoot>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Admin: add ledger field ------------------------------------------------>
+    <div class="modal-overlay" id="modalField">
+        <div class="modal-box">
+            <div class="modal-head">
+                <h3>Ledger Fields</h3>
+                <button class="btn btn-secondary btn-sm" type="button" onclick="Ledger.closeFieldModal()">Close</button>
+            </div>
+            <div class="modal-body">
+                <p class="muted-small">Extra columns are available to every user of the ledger. Anyone can add a
+                    field; removing a field stays with administrators.</p>
+                <div class="lgx-form-grid lgx-form-grid-2">
+                    <div class="lgx-field">
+                        <label for="newFieldLabel">Field name</label>
+                        <input type="text" id="newFieldLabel" class="form-control" maxlength="40" placeholder="e.g. Purchase Order No">
+                    </div>
+                    <div class="lgx-field">
+                        <label for="newFieldType">Field type</label>
+                        <select id="newFieldType" class="form-control">
+                            <option value="text">Text</option>
+                            <option value="number">Whole number</option>
+                            <option value="decimal">Amount</option>
+                            <option value="date">Date</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="margin:.75rem 0;">
+                    <button class="btn btn-primary btn-sm" type="button" onclick="Ledger.createField()">Add Field</button>
+                </div>
+                <div id="fieldList" class="lgx-field-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Catalogue picker: master book / notebook list for the class standard -->
+    <div class="modal-overlay" id="catalogModal">
+        <div class="modal-box catalog-box">
+            <div class="modal-head">
+                <h3 id="catalogTitle">Catalog</h3>
+                <div style="display:flex;gap:.4rem;">
+                    <button class="btn btn-primary btn-sm" type="button" id="btnAddBook"
+                            title="Add a new book to the catalog" onclick="Ledger.toggleBookForm()">+ Add Book</button>
+                    <button class="btn btn-secondary btn-sm" type="button" onclick="Ledger.closeCatalog()">Close</button>
+                </div>
+            </div>
+            <div class="catalog-filters">
+                <input type="text" id="catalogSearch" class="form-control" placeholder="Search title, subject, publication..."
+                       oninput="Ledger.renderCatalog()">
+                <select id="catalogStandardSel" class="form-control" onchange="Ledger.changeCatalogStandard(this.value)"></select>
+                <select id="catalogCategory" class="form-control" onchange="Ledger.renderCatalog()">
+                    <option value="ALL">All Categories</option>
+                    <option value="TB">Text Books</option>
+                    <option value="NB">Note Books</option>
+                    <option value="STATIONERY">Stationery</option>
+                    <option value="INHOUSE">Inhouse</option>
+                </select>
+            </div>
+            <div class="catalog-newbook" id="newBookForm" hidden>
+                <div class="lgx-form-grid lgx-form-grid-2">
+                    <div class="lgx-field"><label for="nbTitle">Book / item name *</label>
+                        <input type="text" id="nbTitle" class="form-control" maxlength="120" placeholder="e.g. Mathematics Part 1"></div>
+                    <div class="lgx-field"><label for="nbCategory">Category</label>
+                        <select id="nbCategory" class="form-control">
+                            <option value="TB">Text Books</option>
+                            <option value="NB">Note Books</option>
+                            <option value="STATIONERY">Stationery</option>
+                            <option value="INHOUSE">Inhouse</option>
+                        </select></div>
+                    <div class="lgx-field"><label for="nbSubject">Subject</label>
+                        <input type="text" id="nbSubject" class="form-control" maxlength="60"></div>
+                    <div class="lgx-field"><label for="nbPublication">Publication</label>
+                        <input type="text" id="nbPublication" class="form-control" maxlength="80"></div>
+                    <div class="lgx-field"><label for="nbEdition">Edition</label>
+                        <input type="text" id="nbEdition" class="form-control" maxlength="40"></div>
+                    <div class="lgx-field"><label for="nbRate">Approved rate</label>
+                        <input type="number" id="nbRate" class="form-control" min="0" step="0.01"></div>
+                </div>
+                <div class="catalog-newbook-actions">
+                    <button class="btn btn-primary btn-sm" type="button" onclick="Ledger.saveNewBook()">Save to Catalog</button>
+                    <button class="btn btn-secondary btn-sm" type="button" onclick="Ledger.toggleBookForm(false)">Cancel</button>
+                    <span class="muted-small">The book is saved to the catalog for the standard selected above.</span>
+                </div>
+            </div>
+            <div class="catalog-list" id="catalogList"></div>
+            <div class="modal-foot">
+                <button class="btn btn-primary" type="button" onclick="Ledger.addSelectedFromCatalog()">Add Selected Rows</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unsaved-changes leave warning (replaces the browser's own dialog) ----->
+    <div class="modal-overlay" id="leaveModal">
+        <div class="modal-box lgx-leave-box">
+            <div class="modal-head">
+                <h3>Leaving without saving?</h3>
+            </div>
+            <div class="modal-body">
+                <p class="muted-small" id="leaveMsg">Heads up — the ledger has changes that haven't been saved yet. If you close it and move to another page now, any newly added data will be lost.</p>
+            </div>
+            <div class="modal-foot lgx-leave-foot">
+                <button class="btn btn-secondary" type="button" onclick="Ledger.cancelLeave()">Stay on page</button>
+                <button class="btn btn-primary" type="button" onclick="Ledger.saveThenLeave()">Save &amp; leave</button>
+                <button class="btn btn-danger" type="button" onclick="Ledger.discardAndLeave()">Leave without saving</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+    <script src="app.js?v=11.0"></script>
+<script src="avatars.js?v=1.0"></script>
+    <script src="ledger.js?v=4.0"></script>
+    <script src="sounds.js?v=1.0"></script>
+<script src="shell.js?v=12.1"></script>
+</body>
+</html>

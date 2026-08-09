@@ -1,0 +1,9 @@
+id,timestamp,username,role,action,entity,entity_id,details
+A_fa907cc6f6,2026-08-08 20:35:17,admin,super_admin,LOGIN,auth,admin,Signed in
+A_913a228c4f,2026-08-08 20:36:26,admin,super_admin,SESSION_REPLACED,auth,admin,Signed in on a new device; other device signed out
+A_3aa9600d6e,2026-08-08 20:36:26,admin,super_admin,LOGIN,auth,admin,Signed in
+A_0486b88b2d,2026-08-08 20:37:08,admin,super_admin,SESSION_REPLACED,auth,admin,Signed in on a new device; other device signed out
+A_8c2a59ef8d,2026-08-08 20:37:08,admin,super_admin,LOGIN,auth,admin,Signed in
+A_eb14fb32e4,2026-08-08 20:37:56,admin,super_admin,SESSION_REPLACED,auth,admin,Signed in on a new device; other device signed out
+A_11b91c7339,2026-08-08 20:37:56,admin,super_admin,LOGIN,auth,admin,Signed in
+A_cf3aadf543,2026-08-08 20:37:58,admin,super_admin,USER_CREATE,user,tester1,Created staff account (status Active)

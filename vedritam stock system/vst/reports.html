@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports - Vedritam Stock Ledger</title>
+    <script>(function(){try{var t=localStorage.getItem('v_theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+    <link rel="stylesheet" href="style.css?v=11.1">
+    <link rel="stylesheet" href="theme.css?v=12.1">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .reports-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 1rem; }
+        .stat-card { background: var(--card-bg, #fff); padding: 1.1rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .stat-card h4 { margin:0 0 .3rem; font-size:.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
+        .stat-card .value { font-size: 1.9rem; font-weight: 600; color: var(--primary-color, #0f3a61); }
+        .chart-card { background: var(--card-bg,#fff); padding:1rem; border-radius:8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .chart-card h3 { margin:0 0 .75rem; font-size:1rem; }
+        .chart-card .chart-note { margin:-.45rem 0 .6rem; font-size:.74rem; color:var(--text-muted); line-height:1.35; }
+        .chart-card canvas { width:100% !important; height:260px !important; display:block; }
+
+        .task-list { max-height: 320px; overflow-y: auto; }
+        .task-item { display:flex; justify-content:space-between; padding: .55rem .25rem; border-bottom: 1px solid #eee; font-size: .9rem; }
+        .badge-danger { background:#fee; color:#c00; padding:2px 8px; border-radius:12px; font-size:.75rem; font-weight:600; }
+        .badge-warn { background:#fff4e0; color:#a56200; padding:2px 8px; border-radius:12px; font-size:.75rem; font-weight:600; }
+        .badge-ok { background:#e6f7ea; color:#1a7a3a; padding:2px 8px; border-radius:12px; font-size:.75rem; font-weight:600; }
+        .filter-bar { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; background:var(--card-bg,#fff);
+            padding:14px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin-top:1rem; }
+        .filter-bar label { display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px; }
+        .filter-bar select, .filter-bar input { padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; font:inherit; background:transparent; color:inherit; }
+        table.report-table { width:100%; border-collapse:collapse; font-size:.85rem; }
+        table.report-table th, table.report-table td { border-bottom:1px solid #e5e7eb; padding:6px 8px; text-align:left; white-space:nowrap; }
+        table.report-table th { background:rgba(15,58,97,.06); position:sticky; top:0; }
+        table.report-table tfoot td { font-weight:700; }
+        .table-wrap { overflow:auto; max-height:460px; }
+        @media print {
+            .no-print { display:none !important; }
+            .table-wrap { max-height:none; overflow:visible; }
+            body { background:#fff; }
+        }
+    </style>
+</head>
+<body data-page="reports">
+<header class="app-header no-print">
+    <div class="header-left">
+        <img src="logo.png" alt="Vedritam Logo" onerror="this.style.display='none'">
+        <div class="header-title">Vedritam School Stock Ledger</div>
+    </div>
+    <div class="header-right">
+        <a href="dashboard.html" class="btn btn-secondary" style="margin-right:10px;">← Dashboard</a>
+        <button class="logout-btn" onclick="vSignOut()">Logout</button>
+    </div>
+</header>
+
+<main class="main-content" style="max-width:1250px; margin:2rem auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <h2 style="margin:0;">📊 Reports &amp; Analytics</h2>
+        <div class="no-print" style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-secondary" onclick="loadReports()">↻ Refresh</button>
+            <button class="btn btn-secondary" onclick="exportExcel()">⬇ Excel / CSV</button>
+            <button class="btn btn-secondary" onclick="window.print()">🖨 Print</button>
+            <button class="btn btn-secondary" onclick="window.print()">📄 Save as PDF</button>
+        </div>
+    </div>
+    <p style="color:var(--text-muted); font-size:.9rem;" id="reportScope">Loading…</p>
+
+    <div class="filter-bar no-print">
+        <div><label for="fSchool">School</label>
+            <select id="fSchool"><option value="">All Schools</option></select></div>
+        <div><label for="fFrom">From date</label><input type="date" id="fFrom"></div>
+        <div><label for="fTo">To date</label><input type="date" id="fTo"></div>
+        <div><label for="fStaff">Staff</label>
+            <select id="fStaff"><option value="">All Staff</option></select></div>
+        <div><label for="fUser">User</label>
+            <select id="fUser"><option value="">All Users</option></select></div>
+        <button class="btn btn-secondary" onclick="resetFilters()">Reset</button>
+    </div>
+
+    <div id="filterWarn" style="display:none;margin:.6rem 0;padding:.6rem .8rem;border-radius:8px;background:rgba(231,76,60,.12);color:#c0392b;font-size:.88rem"></div>
+    <div id="emptyBanner" style="display:none;margin:.6rem 0;padding:.7rem .9rem;border-radius:8px;background:rgba(243,156,18,.14);color:#b9770e;font-size:.9rem"></div>
+
+    <div class="reports-grid">
+        <div class="stat-card"><h4>Total Schools</h4><div class="value" id="statSchools">–</div></div>
+        <div class="stat-card"><h4>Total Classes</h4><div class="value" id="statClasses">–</div></div>
+        <div class="stat-card"><h4>Students</h4><div class="value" id="statStudents">–</div></div>
+        <div class="stat-card"><h4>Book Records</h4><div class="value" id="statRecords">–</div></div>
+        <div class="stat-card"><h4>Users</h4><div class="value" id="statUsers">–</div></div>
+        <div class="stat-card"><h4>Staff</h4><div class="value" id="statStaff">–</div></div>
+        <div class="stat-card"><h4>Books Purchased</h4><div class="value" id="statPurchased">–</div></div>
+        <div class="stat-card"><h4>Books Distributed</h4><div class="value" id="statDistributed">–</div></div>
+        <div class="stat-card"><h4>Books Returned</h4><div class="value" id="statReturned">–</div></div>
+        <div class="stat-card"><h4>Books Balance</h4><div class="value" id="statBalance">–</div></div>
+        <div class="stat-card"><h4>Books Required</h4><div class="value" id="statRequired">–</div></div>
+        <div class="stat-card"><h4>Low Stock Rows</h4><div class="value" id="statLow">–</div></div>
+    </div>
+
+    <div class="reports-grid" style="margin-top:1.5rem;">
+        <div class="chart-card"><h3>Stock movement — books (quantity) vs stage</h3>
+            <p class="chart-note">X axis: stage (Purchased, Distributed, Returned, Balance) · Y axis: number of books</p>
+            <canvas id="chartOverview"></canvas></div>
+        <div class="chart-card"><h3>Books purchased vs subject</h3>
+            <p class="chart-note">X axis: subject (top 10) · Y axis: books purchased</p>
+            <canvas id="chartSubjects"></canvas></div>
+        <div class="chart-card"><h3>Books purchased vs school</h3>
+            <p class="chart-note">X axis: school · Y axis: books purchased</p>
+            <canvas id="chartSchools"></canvas></div>
+        <div class="chart-card"><h3>Share of books purchased vs category</h3>
+            <p class="chart-note">Each slice is a category's share of total books purchased</p>
+            <canvas id="chartCategory"></canvas></div>
+        <div class="chart-card"><h3>Books received vs issued, by month</h3>
+            <p class="chart-note">X axis: month · Y axis: number of books (received = purchased, issued = distributed)</p>
+            <canvas id="chartTrend"></canvas></div>
+    </div>
+
+    <div class="chart-card" style="margin-top:1.5rem;">
+        <h3>📑 Report Data <span style="font-size:.8rem;font-weight:400;color:var(--text-muted)" id="rowCount"></span></h3>
+        <div class="table-wrap"><table class="report-table" id="reportTable">
+            <thead><tr>
+                <th>School</th><th>Class</th><th>Book</th><th>Subject</th><th>Category</th>
+                <th>Strength</th><th>Purchased</th><th>Distributed</th><th>Returned</th>
+                <th>Balance</th><th>Required</th><th>Updated By</th><th>Updated</th>
+            </tr></thead>
+            <tbody></tbody>
+            <tfoot></tfoot>
+        </table></div>
+    </div>
+
+    <div class="reports-grid" style="margin-top:1.5rem;">
+        <div class="chart-card">
+            <h3>⚠️ Task List — Attention Needed</h3>
+            <p style="font-size:.8rem; color:var(--text-muted); margin:0 0 .5rem;">Books where required &gt; 0 or balance is negative.</p>
+            <div class="task-list" id="taskList"></div>
+        </div>
+        <div class="chart-card" id="activityCard">
+            <h3>📋 Recent Activity</h3>
+            <div class="task-list" id="activityList"></div>
+        </div>
+    </div>
+
+    <p style="font-size:.78rem;color:var(--text-muted);margin-top:1rem" id="integrityNote"></p>
+</main>
+
+<div id="toast-container"></div>
+<script>
+const token = localStorage.getItem('v_token') || localStorage.getItem('access_token') || localStorage.getItem('token') || '';
+if (!token) { window.location.href = 'index.html'; }
+function authHeaders() { return { 'Authorization': 'Bearer ' + token }; }
+const charts = {};
+let lastData = null;
+
+function num(x) { return Number(x) || 0; }
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function val(id) { const el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
+
+function filterQuery() {
+    const f = { school_id: val('fSchool'), date_from: val('fFrom'), date_to: val('fTo'),
+                staff: val('fStaff'), user: val('fUser') };
+    const parts = Object.keys(f).filter(k => f[k]).map(k => k + '=' + encodeURIComponent(f[k]));
+    return parts.length ? '?' + parts.join('&') : '';
+}
+
+async function apiGet(url) {
+    const r = await fetch(url, { headers: authHeaders() });
+    if (!r.ok) throw new Error(url + ' → ' + r.status);
+    return r.json();
+}
+
+function resetFilters() {
+    ['fSchool','fFrom','fTo','fStaff','fUser'].forEach(id => { document.getElementById(id).value = ''; });
+    showWarn('');
+    loadReports();
+}
+
+function fillOptions(sel, values, allLabel, keep) {
+    const el = document.getElementById(sel);
+    const current = keep ? el.value : '';
+    el.innerHTML = '<option value="">' + allLabel + '</option>' +
+        values.map(v => `<option value="${esc(v.value)}">${esc(v.label)}</option>`).join('');
+    if (current) el.value = current;
+}
+
+function todayISO() { return new Date().toISOString().slice(0, 10); }
+
+function showWarn(msg) {
+    const el = document.getElementById('filterWarn');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.style.display = msg ? '' : 'none';
+}
+
+function validRange() {
+    const from = val('fFrom'), to = val('fTo'), today = todayISO();
+    if (from && from > today) { showWarn('The "From date" cannot be in the future.'); return false; }
+    if (to && to > today) { showWarn('The "To date" cannot be in the future.'); return false; }
+    if (from && to && from > to) { showWarn('The "From date" must be on or before the "To date".'); return false; }
+    showWarn('');
+    return true;
+}
+
+let loadBusy = false, loadQueued = false, lastLoadAt = 0;
+
+async function loadReports() {
+    if (!validRange()) return;
+    // Serialised: overlapping loads (filters + focus + data-changed events) were
+    // what made the charts flicker and occasionally render empty.
+    if (loadBusy) { loadQueued = true; return; }
+    loadBusy = true;
+    try {
+        // One request -> one dataset for every card, chart, table and export.
+        const d = await apiGet('/api/v1/reports' + filterQuery());
+        lastData = d;
+        lastLoadAt = Date.now();
+        fillOptions('fSchool', d.options.schools.map(s => ({ value: s.id, label: s.name })), 'All Schools', true);
+        fillOptions('fStaff', d.options.staff.map(s => ({ value: s, label: s })), 'All Staff', true);
+        fillOptions('fUser', d.options.users.map(s => ({ value: s, label: s })), 'All Users', true);
+        render(d);
+    } catch (e) {
+        if (String(e.message).includes('401')) { localStorage.clear(); window.location.href = 'index.html'; return; }
+        console.error(e);
+        showWarn('Could not refresh the report just now. Showing the last loaded figures.');
+    } finally {
+        loadBusy = false;
+        if (loadQueued) { loadQueued = false; setTimeout(loadReports, 60); }
+    }
+}
+
+function render(d) {
+    const t = d.totals;
+    const banner = document.getElementById('emptyBanner');
+    if (banner) {
+        if (d.emptyRange || t.records === 0) {
+            const from = d.filters.date_from, to = d.filters.date_to;
+            banner.textContent = (from || to)
+                ? `No records between ${from || 'the beginning'} and ${to || 'today'}. All figures below are zero.`
+                : 'No records match these filters. All figures below are zero.';
+            banner.style.display = '';
+        } else {
+            banner.style.display = 'none';
+        }
+    }
+    const set = (id, v) => { document.getElementById(id).textContent = v; };
+    set('statSchools', t.schools); set('statClasses', t.classes); set('statStudents', t.students);
+    set('statRecords', t.records); set('statUsers', t.users); set('statStaff', t.staff);
+    set('statPurchased', t.purchased); set('statDistributed', t.distributed);
+    set('statReturned', t.returned); set('statBalance', t.balance);
+    set('statRequired', t.required); set('statLow', t.lowStock);
+
+    const schoolName = d.filters.school_id
+        ? (d.options.schools.find(s => String(s.id) === String(d.filters.school_id)) || {}).name || 'Selected school'
+        : 'All Schools';
+    document.getElementById('reportScope').textContent =
+        `${schoolName} · ${t.records} records · generated ${d.generated_at}` +
+        (d.filters.date_from || d.filters.date_to ? ` · ${d.filters.date_from || 'start'} → ${d.filters.date_to || 'today'}` : '');
+
+    drawChart('chartOverview', 'bar', {
+        labels: d.overview.map(o => o.label),
+        datasets: [{ label: 'Books', data: d.overview.map(o => o.value),
+            backgroundColor: ['#0f3a61','#3498db','#f39c12','#27ae60'] }]
+    }, { x: 'Stage', y: 'Number of books' });
+    drawChart('chartSubjects', 'bar', {
+        labels: d.bySubject.map(o => o.label),
+        datasets: [{ label: 'Purchased', data: d.bySubject.map(o => o.value), backgroundColor:'#0f3a61' }]
+    }, { x: 'Subject', y: 'Books purchased' });
+    drawChart('chartSchools', 'bar', {
+        labels: d.bySchool.map(o => o.label),
+        datasets: [{ label: 'Purchased', data: d.bySchool.map(o => o.value), backgroundColor:'#3498db' }]
+    }, { x: 'School', y: 'Books purchased' });
+    drawChart('chartCategory', 'doughnut', {
+        labels: d.byCategory.map(o => o.label),
+        datasets: [{ data: d.byCategory.map(o => o.value),
+            backgroundColor: ['#0f3a61','#3498db','#27ae60','#f39c12','#e74c3c','#9b59b6','#16a085','#95a5a6','#d35400','#2c3e50'] }]
+    });
+    drawChart('chartTrend', 'line', {
+        labels: d.monthly.labels,
+        datasets: [
+            { label: 'Received', data: d.monthly.received, borderColor:'#16A34A', tension:.35, fill:false },
+            { label: 'Issued', data: d.monthly.issued, borderColor:'#2563EB', tension:.35, fill:false }
+        ]
+    }, { x: 'Month', y: 'Number of books' });
+
+    // Detail table — the exact rows behind every number above.
+    const body = d.records.map(r => `<tr>
+        <td>${esc(r.school)}</td><td>${esc(r.class)}</td><td>${esc(r.bookName)}</td>
+        <td>${esc(r.subject)}</td><td>${esc(r.category)}</td>
+        <td>${r.strength}</td><td>${r.purchased}</td><td>${r.distributed}</td><td>${r.returned}</td>
+        <td>${r.balance}</td><td>${r.booksRequired}</td>
+        <td>${esc(r.modified_by || r.created_by)}</td><td>${esc(r.modified_time || r.created_time)}</td></tr>`).join('');
+    document.querySelector('#reportTable tbody').innerHTML = body ||
+        '<tr><td colspan="13" style="color:var(--text-muted)">No records match these filters.</td></tr>';
+    document.querySelector('#reportTable tfoot').innerHTML = `<tr>
+        <td colspan="5">Totals (${t.records} records)</td><td>${t.students}</td><td>${t.purchased}</td>
+        <td>${t.distributed}</td><td>${t.returned}</td><td>${t.balance}</td><td>${t.required}</td><td colspan="2"></td></tr>`;
+    document.getElementById('rowCount').textContent = `— ${t.records} rows`;
+
+    const taskEl = document.getElementById('taskList');
+    const tasks = Array.isArray(d.tasks) ? d.tasks : [];
+    taskEl.innerHTML = tasks.length === 0
+        ? '<p style="color:var(--text-muted);">✅ Nothing pending. Everything is in order.</p>'
+        : tasks.map(r => {
+            const badge = r.balance < 0 ? `<span class="badge-danger">Short ${Math.abs(r.balance)}</span>`
+                : (r.booksRequired > 0 ? `<span class="badge-warn">Need ${r.booksRequired}</span>`
+                : `<span class="badge-warn">Low stock ${r.balance}</span>`);
+            return `<div class="task-item"><div><strong>${esc(r.bookName||'—')}</strong><br>
+                <small style="color:var(--text-muted);">${esc(r.school)} • ${esc(r.class)} • ${esc(r.subject)}</small></div>
+                ${badge}</div>`;
+        }).join('');
+
+    // Recent Activity is hidden from ordinary user accounts.
+    const activity = Array.isArray(d.activity) ? d.activity : [];
+    const activityCard = document.getElementById('activityCard');
+    if (activityCard) activityCard.style.display = d.showActivity === false ? 'none' : '';
+    document.getElementById('activityList').innerHTML = activity.length === 0
+        ? '<p style="color:var(--text-muted);">No activity yet.</p>'
+        : activity.map(a => `<div class="task-item">
+            <div><strong>${esc(a.text)}</strong><br><small style="color:var(--text-muted);">${esc(a.username)}</small></div>
+            <span class="badge-ok">${esc(a.timestamp)}</span></div>`).join('');
+
+    const i = d.integrity;
+    document.getElementById('integrityNote').textContent =
+        `Data integrity: totals ${i.balanced ? 'validated' : 'MISMATCH — please review'}; ` +
+        `${i.orphanRowsExcluded} orphaned row(s) excluded; ${i.recalculatedRows} row(s) recalculated from purchase/issue/return values.`;
+}
+
+function drawChart(id, type, data, axes) {
+    const canvas = document.getElementById(id);
+    // Chart.js may still be loading (or blocked): skip quietly and retry later
+    // instead of throwing halfway through the render.
+    if (!canvas || typeof Chart === 'undefined') return;
+    if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+    const existing = (Chart.getChart && Chart.getChart(canvas));
+    if (existing) existing.destroy();
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const tick = dark ? '#94A3B8' : '#475569';
+    const grid = dark ? 'rgba(148,163,184,.18)' : 'rgba(15,23,42,.08)';
+    const scales = (type === 'doughnut' || type === 'pie') ? undefined : {
+        x: { title: { display: !!(axes && axes.x), text: (axes && axes.x) || '', color: tick },
+             ticks: { color: tick, maxRotation: 0, autoSkip: true }, grid: { color: grid } },
+        y: { beginAtZero: true,
+             title: { display: !!(axes && axes.y), text: (axes && axes.y) || '', color: tick },
+             ticks: { color: tick, precision: 0 }, grid: { color: grid } }
+    };
+    charts[id] = new Chart(canvas, {
+        type, data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            resizeDelay: 120,
+            layout: { padding: 4 },
+            plugins: {
+                legend: { position: 'bottom', labels: { color: tick, boxWidth: 12 } },
+                tooltip: { callbacks: { label: (c) => `${c.dataset.label || c.label}: ${c.formattedValue} books` } }
+            },
+            scales
+        }
+    });
+}
+
+
+function exportExcel() {
+    // Server export uses the identical aggregation + filters as this page.
+    const q = filterQuery();
+    fetch('/api/v1/reports/export' + q, { headers: authHeaders() })
+        .then(r => r.blob())
+        .then(b => {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(b);
+            a.download = 'Vedritam_Report.csv';
+            a.click();
+            URL.revokeObjectURL(a.href);
+        })
+        .catch(e => alert('Export failed: ' + e.message));
+}
+
+// Filters apply automatically — there is no Apply button.
+(function wireFilters() {
+    let timer = null;
+    const debounced = () => { clearTimeout(timer); timer = setTimeout(loadReports, 350); };
+    const attach = () => {
+        ['fFrom', 'fTo'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.max = todayISO();
+            el.addEventListener('change', debounced);
+            el.addEventListener('input', debounced);
+        });
+        ['fSchool', 'fStaff', 'fUser'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', loadReports);
+        });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', attach);
+    else attach();
+})();
+
+document.addEventListener('v-data-changed', () => loadReports());
+// Refresh on focus at most once every 20s so tab-switching cannot restart a
+// render that is still in flight.
+window.addEventListener('focus', () => {
+    if (Date.now() - lastLoadAt > 20000) loadReports();
+});
+// Theme flip only repaints the existing data — no refetch, no flicker.
+new MutationObserver(() => { if (lastData) render(lastData); })
+    .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+// Wait for Chart.js before the first paint so charts never come up blank.
+(function boot(tries) {
+    if (typeof Chart !== 'undefined' || tries > 40) { loadReports(); return; }
+    setTimeout(() => boot((tries || 0) + 1), 100);
+})(0);
+</script>
+<script src="app.js?v=11.0"></script>
+<script src="avatars.js?v=1.0"></script>
+<script src="chatbot.js?v=10.0"></script>
+<script src="sounds.js?v=1.0"></script>
+<script src="shell.js?v=12.1"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: vedritam
+    runtime: python
+    plan: free
+    rootDir: vst
+    buildCommand: pip install -r requirements.txt
+    startCommand: python3 start.py
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: ENVIRONMENT
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATA_DIR
+        value: /var/data
+      - key: BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
+    disk:
+      name: vedritam-data
+      mountPath: /var/data
+      sizeGB: 1

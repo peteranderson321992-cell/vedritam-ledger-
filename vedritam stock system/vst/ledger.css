@@ -1,0 +1,207 @@
+/* ledger.css — enterprise ledger screen (sticky headers, searchable dropdowns,
+   grouped columns, print layout). Values reuse the shared theme tokens. */
+
+/* theme bridge: ledger uses the shared --v-* design tokens so light and dark
+   themes stay in sync. */
+:root { --lgx-subtle:#EEF2F7; --lgx-subtle-strong:#E4EAF2; --lgx-danger:#DC2626; }
+html[data-theme="dark"] {
+    --lgx-subtle: rgba(148,163,184,.14);
+    --lgx-subtle-strong: rgba(148,163,184,.22);
+    --lgx-danger:#F87171;
+}
+html[data-theme="dark"] .lgx-card { box-shadow: var(--v-shadow); }
+html[data-theme="dark"] .lgx-table thead th,
+html[data-theme="dark"] .lgx-table .col-idx,
+html[data-theme="dark"] .lgx-table tfoot .lgx-total-row td { background: #1E293B; color: var(--v-text); }
+html[data-theme="dark"] .lgx-table thead .group-head { background: #24334a; }
+html[data-theme="dark"] .lgx-menu-panel,
+html[data-theme="dark"] .lgx-combo-list { background: var(--v-elev); color: var(--v-text); }
+html[data-theme="dark"] .form-control,
+html[data-theme="dark"] .lgx-field input,
+html[data-theme="dark"] .lgx-field select { background: var(--v-bg); color: var(--v-text);
+    border-color: var(--v-border); }
+html[data-theme="dark"] .lgx-field input[readonly] { background: var(--lgx-subtle); }
+
+.lgx { max-width: 100%; padding: .6rem .75rem 2rem; }
+
+/* compact density: the whole register fits on screen at 100% browser zoom */
+.lgx-table { font-size: .68rem; }
+.lgx-table th, .lgx-table td { padding: .18rem .3rem; }
+.lgx-table thead th { font-size: .6rem; letter-spacing: .01em; }
+.lgx-table thead tr:nth-child(2) th { top: 20px; }
+.lgx-table .col-idx { width: 30px; }
+.lgx-table td.editable { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+
+.lgx-context { margin-bottom: .6rem; }
+.lgx-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem;
+    font-size: .8rem; color: var(--v-text-muted, #64748b); }
+.lgx-crumbs a { color: var(--v-text-muted, #64748b); text-decoration: none; }
+.lgx-crumbs a:hover { color: var(--v-primary, #2563eb); text-decoration: underline; }
+.lgx-crumbs strong { color: var(--v-text, #0f172a); }
+.lgx-pill { background: var(--lgx-subtle); color: var(--v-text, #0f172a);
+    border-radius: 999px; padding: .1rem .55rem; font-size: .72rem; font-weight: 600; }
+.lgx-pill-muted { background: transparent; border: 1px solid var(--v-border, #e2e8f0);
+    color: var(--v-text-muted, #64748b); }
+.lgx-title { margin: .3rem 0 .5rem; font-size: 1.05rem; letter-spacing: -.01em; }
+
+.lgx-context-grid, .lgx-form-grid {
+    display: grid; gap: .65rem 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+}
+.lgx-form-grid-2 { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.lgx-field { display: flex; flex-direction: column; gap: .25rem; min-width: 0; }
+.lgx-field-wide { grid-column: span 2; }
+.lgx-field label { font-size: .74rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .04em; color: var(--v-text-muted, #64748b); }
+.lgx-field .req { color: var(--lgx-danger); }
+.lgx-info { display: inline-flex; align-items: center; justify-content: center;
+    width: 13px; height: 13px; border-radius: 50%; font-size: .62rem; font-style: normal;
+    background: var(--lgx-subtle); color: var(--v-text-muted, #64748b); cursor: help; }
+.lgx-static { display: block; background: var(--lgx-subtle); font-weight: 600; }
+.lgx-field input[readonly] { background: var(--lgx-subtle); color: var(--v-text-muted, #64748b); }
+
+/* cards ------------------------------------------------------------------- */
+.lgx-card { background: var(--v-elev, #fff); border: 1px solid var(--v-border, #e2e8f0);
+    border-radius: 12px; margin-bottom: 1.1rem; box-shadow: 0 1px 2px rgba(15, 23, 42, .05); }
+.lgx-card-head { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center;
+    justify-content: space-between; padding: .5rem .6rem;
+    border-bottom: 1px solid var(--v-border, #e2e8f0); }
+.lgx-card-head h3 { margin: 0; font-size: .98rem; }
+.lgx-card-actions, .lgx-toolbar { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.lgx-card-body { padding: 1rem; }
+.lgx-toolbar .form-control { height: 24px; padding: 0 .3rem; font-size: .72rem; border-radius: 6px; }
+.lgx-toolbar .btn { padding: .18rem .45rem; font-size: .72rem; }
+.lgx-search { min-width: 130px; max-width: 170px; }
+#categorySelect { max-width: 130px; }
+#bookSelect { max-width: 170px; }
+.catalog-filters .form-control { height: 26px; padding: 0 .35rem; font-size: .75rem; }
+
+/* vendor searchable dropdown --------------------------------------------- */
+.lgx-vendor-cell { cursor: pointer; white-space: nowrap; }
+.lgx-vendor-cell .lgx-vendor-caret { float: right; opacity: .5; margin-left: .35rem; }
+.lgx-vpick { position: absolute; z-index: 200; width: 300px; padding: .35rem;
+    background: var(--v-elev, #fff); border: 1px solid var(--v-border, #e2e8f0);
+    border-radius: 10px; box-shadow: 0 12px 28px rgba(15, 23, 42, .18); }
+.lgx-vpick-input { width: 100%; height: 28px; font-size: .78rem; margin-bottom: .3rem; }
+.lgx-vpick-list { max-height: 240px; overflow: auto; }
+.lgx-vpick-item { display: block; width: 100%; text-align: left; border: 0; background: none;
+    padding: .3rem .4rem; border-radius: 6px; cursor: pointer; color: inherit; font-size: .8rem; }
+.lgx-vpick-item:hover { background: var(--lgx-subtle); }
+.lgx-vpick-item em { display: block; font-style: normal; font-size: .72rem; opacity: .7; }
+.lgx-vpick-empty { padding: .45rem; font-size: .76rem; opacity: .75; }
+.lgx-vpick-foot { padding: .25rem .4rem 0; border-top: 1px solid var(--v-border, #e2e8f0); margin-top: .25rem; }
+
+/* catalog: new book form -------------------------------------------------- */
+.catalog-newbook { padding: .6rem .8rem; border-bottom: 1px solid var(--v-border, #e2e8f0);
+    background: var(--lgx-subtle); }
+.catalog-newbook-actions { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; margin-top: .6rem; }
+
+.lgx-calc { display: grid; gap: .5rem; margin-top: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.lgx-calc-item { display: flex; justify-content: space-between; align-items: center;
+    gap: .5rem; padding: .5rem .65rem; border-radius: 8px;
+    background: var(--lgx-subtle); font-size: .8rem; cursor: help; }
+.lgx-calc-item strong { font-variant-numeric: tabular-nums; }
+
+/* dropdown menus --------------------------------------------------------- */
+.lgx-menu { position: relative; }
+.lgx-menu-panel { position: absolute; right: 0; top: calc(100% + 4px); z-index: 60;
+    display: none; min-width: 210px; max-height: 320px; overflow: auto; padding: .4rem;
+    background: var(--v-elev, #fff); border: 1px solid var(--v-border, #e2e8f0);
+    border-radius: 10px; box-shadow: 0 12px 28px rgba(15, 23, 42, .16); }
+.lgx-menu-panel.open { display: block; }
+.lgx-menu-panel label, .lgx-menu-panel button { display: flex; gap: .45rem; align-items: center;
+    width: 100%; padding: .3rem .45rem; font-size: .8rem; border: 0; background: none;
+    text-align: left; color: inherit; cursor: pointer; border-radius: 6px; }
+.lgx-menu-panel label:hover, .lgx-menu-panel button:hover { background: var(--lgx-subtle); }
+
+/* searchable combo ------------------------------------------------------- */
+.lgx-combo { position: relative; }
+.lgx-combo-list { position: absolute; z-index: 70; left: 0; right: 0; top: calc(100% + 2px);
+    display: none; max-height: 240px; overflow: auto; margin: 0; padding: .25rem; list-style: none;
+    background: var(--v-elev, #fff); border: 1px solid var(--v-border, #e2e8f0);
+    border-radius: 10px; box-shadow: 0 12px 28px rgba(15, 23, 42, .16); }
+.lgx-combo-list.open { display: block; }
+.lgx-combo-list li { display: flex; flex-direction: column; padding: .35rem .5rem;
+    border-radius: 6px; font-size: .84rem; cursor: pointer; }
+.lgx-combo-list li em { font-style: normal; font-size: .72rem; color: var(--v-text-muted, #64748b); }
+.lgx-combo-list li:hover, .lgx-combo-list li.active { background: var(--lgx-subtle); }
+.lgx-combo-empty { color: var(--v-text-muted, #64748b); cursor: default; }
+
+/* table ------------------------------------------------------------------ */
+.lgx-scroll { max-height: 72vh; overflow: auto; border-radius: 0 0 12px 12px; }
+.lgx-scroll-short { max-height: 320px; margin-top: 1rem; border: 1px solid var(--v-border, #e2e8f0);
+    border-radius: 10px; }
+.lgx-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .8rem; }
+.lgx-table th, .lgx-table td { border-right: 1px solid var(--v-border, #e2e8f0);
+    border-bottom: 1px solid var(--v-border, #e2e8f0); padding: .35rem .5rem;
+    white-space: nowrap; }
+.lgx-table thead th { position: sticky; top: 0; z-index: 20;
+    background: var(--lgx-subtle); text-align: left; font-size: .72rem;
+    text-transform: uppercase; letter-spacing: .03em; }
+.lgx-table thead tr.group-row th { top: 0; z-index: 25; }
+.lgx-table thead tr:nth-child(2) th { top: 26px; z-index: 21; }
+.lgx-table thead .group-head { text-align: center; font-weight: 700;
+    background: var(--lgx-subtle-strong); }
+.lgx-table .col-idx { position: sticky; left: 0; z-index: 22; width: 42px; text-align: center;
+    background: var(--lgx-subtle); font-weight: 600; color: var(--v-text-muted, #64748b); }
+.lgx-table .col-num { text-align: right; font-variant-numeric: tabular-nums; }
+.lgx-table .col-derived { background: color-mix(in srgb, var(--lgx-subtle) 60%, transparent);
+    font-weight: 600; }
+.lgx-table td.editable:focus { outline: 2px solid var(--v-primary, #2563eb); outline-offset: -2px;
+    background: color-mix(in srgb, var(--v-primary, #2563eb) 8%, transparent); }
+.lgx-table td.dirty { box-shadow: inset 3px 0 0 #f59e0b; }
+.lgx-table tbody tr:hover td { background: color-mix(in srgb, var(--v-primary, #2563eb) 5%, transparent); }
+.lgx-table tbody tr.row-selected td { background: color-mix(in srgb, var(--v-primary, #2563eb) 12%, transparent); }
+.lgx-table .empty-row td { white-space: normal; padding: 1.5rem; text-align: center;
+    color: var(--v-text-muted, #64748b); }
+.lgx-table tfoot .lgx-total-row td { position: sticky; bottom: 0; background: var(--lgx-subtle);
+    font-weight: 700; z-index: 18; }
+.lgx-table .text-danger { color: var(--lgx-danger); }
+
+/* modal ------------------------------------------------------------------ */
+.lgx-field-list { display: flex; flex-direction: column; gap: .4rem; }
+.lgx-field-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+    padding: .45rem .6rem; border: 1px solid var(--v-border, #e2e8f0); border-radius: 8px;
+    font-size: .84rem; }
+.lgx-field-row em { display: block; font-style: normal; font-size: .72rem; color: var(--v-text-muted, #64748b); }
+.btn-mini { border: 1px solid var(--v-border, #e2e8f0); background: transparent; color: inherit;
+    border-radius: 6px; padding: .2rem .5rem; font-size: .75rem; cursor: pointer; }
+.btn-mini.danger { border-color: var(--lgx-danger); color: var(--lgx-danger); }
+.muted-small { font-size: .78rem; color: var(--v-text-muted, #64748b); }
+
+/* print ------------------------------------------------------------------ */
+.lgx-print-head { display: none; }
+@media print {
+    @page { size: A3 landscape; margin: 10mm; }
+    .no-print, .app-header, .app-sidebar, .sidebar, nav { display: none !important; }
+    .lgx { padding: 0; }
+    .lgx-card { border: 0; box-shadow: none; margin: 0; }
+    .lgx-print-head { display: block; margin-bottom: .5rem; font-size: 12px; }
+    .lgx-scroll { max-height: none; overflow: visible; }
+    .lgx-table { font-size: 8px; }
+    .lgx-table th, .lgx-table td { border: 1px solid #999; white-space: normal; }
+    .lgx-table thead th { position: static; background: #eee !important; }
+}
+
+/* responsive ------------------------------------------------------------- */
+@media (max-width: 900px) {
+    .lgx { padding: .75rem; }
+    .lgx-field-wide { grid-column: span 1; }
+    .lgx-toolbar { width: 100%; }
+    .lgx-search { flex: 1 1 100%; }
+    .lgx-scroll { max-height: 60vh; }
+}
+
+/* selected extra column (deleted with the common Delete button) ------------ */
+.lgx-table thead th.col-custom { cursor: pointer; }
+.lgx-table thead th.col-selected { outline: 2px solid var(--lgx-danger); outline-offset: -2px; }
+
+/* catalogue picker in dark mode -------------------------------------------- */
+html[data-theme="dark"] .catalog-list,
+html[data-theme="dark"] .catalog-item { color: var(--v-text); }
+html[data-theme="dark"] .catalog-item:hover { background: var(--lgx-subtle); }
+
+/* unsaved-changes leave dialog -------------------------------------------- */
+.lgx-leave-box { width: 420px; max-width: calc(100vw - 2rem); }
+.lgx-leave-foot { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: flex-end; }

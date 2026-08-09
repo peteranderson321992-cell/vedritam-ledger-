@@ -1,0 +1,2 @@
+# DAV branches only - one per line. Replace with your real DAV school names,
+# then run:  python setup_accounts.py

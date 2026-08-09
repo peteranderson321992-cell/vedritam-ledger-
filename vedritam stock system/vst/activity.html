@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Log - Vedritam</title>
+    <script>(function(){try{var t=localStorage.getItem('v_theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+    <link rel="stylesheet" href="style.css?v=11.1">
+    <link rel="stylesheet" href="theme.css?v=12.1">
+    <style>
+        /* Activity Log - high contrast table */
+        .main-content .table-wrapper {
+            background: #ffffff;
+            border: 1px solid #b9c2cf;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(16, 24, 40, .08);
+            overflow: auto;
+        }
+        .main-content .spreadsheet thead th {
+            background: #1f2a37;
+            color: #ffffff;
+            font-weight: 600;
+            letter-spacing: .02em;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            border-right: 1px solid rgba(255,255,255,.15);
+        }
+        .main-content .spreadsheet tbody td {
+            color: #16202b;
+            font-size: .88rem;
+            border-bottom: 1px solid #dfe4ea;
+            border-right: 1px solid #eef1f4;
+        }
+        .main-content .spreadsheet tbody tr { background: #ffffff; }
+        .main-content .spreadsheet tbody tr:nth-child(even) { background: #f3f6fa; }
+        .main-content .spreadsheet tbody tr:hover { background: #e4edfb; }
+        .main-content .spreadsheet .muted-small { color: #566373; }
+        .main-content .spreadsheet .badge-role {
+            background: #e6edf7;
+            color: #1f3a5f;
+            border: 1px solid #b6c8e0;
+            font-weight: 600;
+        }
+        [data-theme="dark"] .main-content .table-wrapper { background: #131a23; border-color: #2c3846; }
+        [data-theme="dark"] .main-content .spreadsheet thead th { background: #0d131a; color: #f2f6fa; }
+        [data-theme="dark"] .main-content .spreadsheet tbody td { color: #e6ecf3; border-bottom-color: #263242; border-right-color: #1d2733; }
+        [data-theme="dark"] .main-content .spreadsheet tbody tr { background: #151d27; }
+        [data-theme="dark"] .main-content .spreadsheet tbody tr:nth-child(even) { background: #1b242f; }
+        [data-theme="dark"] .main-content .spreadsheet tbody tr:hover { background: #24303e; }
+        [data-theme="dark"] .main-content .spreadsheet .muted-small { color: #9fb0c2; }
+        [data-theme="dark"] .main-content .spreadsheet .badge-role { background: #1e2b3b; color: #cfe1f7; border-color: #35485f; }
+    </style>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body data-page="activity">
+    <header class="app-header">
+        <div class="header-left">
+            <div class="header-title">Activity Log</div>
+        </div>
+        <div class="header-right">
+            <a href="dashboard.html" class="btn btn-secondary" style="background: rgba(255,255,255,0.2); color:white; border:none;">Dashboard</a>
+        </div>
+    </header>
+    <main class="main-content" style="max-width: 1200px; margin: 0 auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; gap:1rem; flex-wrap:wrap;">
+            <div>
+                <h2 style="margin:0;">Audit Trail</h2>
+                <p class="muted-small">An append-only application record of recorded stock movements, account changes and administrative actions within your authorized scope.</p>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button class="btn btn-secondary" onclick="App.activity.load()">Refresh</button>
+                <button class="btn btn-primary staff-only" onclick="App.activity.download()">Download CSV</button>
+            </div>
+        </div>
+
+        <div class="filter-bar">
+            <input type="search" id="auditUser" class="form-control" placeholder="Filter by user...">
+            <select id="auditAction" class="form-select"><option value="">All actions</option><option value="2FA_DISABLED">2FA disabled</option><option value="2FA_ENABLED">2FA enabled</option><option value="2FA_ENROLL_START">2FA enrollment started</option><option value="AI_CHAT">AI chat</option><option value="AI_FILE_DOWNLOAD">AI file download</option><option value="AI_FILE_READ">AI file read</option><option value="AI_FILE_UPLOAD">AI file upload</option><option value="AI_FILE_WRITE">AI file write</option><option value="AI_IMAGE">AI image</option><option value="AI_LEDGER_ADD">AI ledger add</option><option value="AI_LEDGER_EXPORT">AI ledger export</option><option value="AI_SETTINGS_CLEAR">AI settings clear</option><option value="AI_SETTINGS_UPDATE">AI settings update</option><option value="BUDGET_CREATE">Budget create</option><option value="BUDGET_DELETE">Budget delete</option><option value="CATALOG_DELETE">Catalog delete</option><option value="CATALOG_SAVE">Catalog save</option><option value="CLASS_CREATE">Class creation</option><option value="CLASS_DELETE">Class deletion</option><option value="CLASS_STRENGTH">Class strength</option><option value="DISTRIBUTION_DELETE">Distribution deletion</option><option value="DISTRIBUTION_ISSUE">Distribution issue</option><option value="GRN_CREATE">GRN</option><option value="INVOICE_CREATE">Invoice</option><option value="LEDGER_EXPORT">Ledger export</option><option value="LEDGER_FIELD_ADD">Ledger field add</option><option value="LEDGER_FIELD_DELETE">Ledger field delete</option><option value="LEDGER_SYNC">Ledger sync</option><option value="LOCKOUT">Lockout</option><option value="LOGIN">Login</option><option value="LOGIN_FAILED">Failed login</option><option value="LOGOUT">Logout</option><option value="PASSWORD_CHANGE">Password change</option><option value="PASSWORD_RESET">Password reset</option><option value="PAYMENT_CREATE">Payment</option><option value="PO_CREATE">Purchase order</option><option value="PO_STATUS">Purchase order status</option><option value="PR_CREATE">Purchase request</option><option value="SCHOOL_CREATE">School creation</option><option value="SCHOOL_DELETE">School deletion</option><option value="SCHOOL_UPDATE">School update</option><option value="SESSION_REPLACED">Session replaced</option><option value="SESSION_TIMEOUT_UPDATE">Session timeout update</option><option value="SIGNUP_REQUEST">Signup request</option><option value="TRANSFER_REQUEST">Transfer request</option><option value="TRANSFER_STOCK_MOVED">Transfer stock moved</option><option value="USER_CREATE">User creation</option><option value="USER_DELETE">User deletion</option><option value="USER_UPDATE">User update</option><option value="VENDOR_DELETE">Vendor deletion</option><option value="VENDOR_RETURN">Vendor return</option><option value="VENDOR_SAVE">Vendor save</option><option value="VENDOR_UPDATE">Vendor update</option></select>
+            <span class="muted-small" id="auditCount"></span>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin:10px 0;">
+            <button class="btn btn-secondary" type="button" id="auditPrev" disabled>Previous</button>
+            <span class="muted-small" id="auditPage">Page 1</span>
+            <button class="btn btn-secondary" type="button" id="auditNext" disabled>Next</button>
+        </div>
+
+        <div class="table-wrapper" style="height: auto;">
+            <table class="spreadsheet" style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th>When</th>
+                        <th>User</th>
+                        <th>Action</th>
+                        <th>Record</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody id="auditBody">
+                    <tr><td colspan="5" style="padding:20px; text-align:center;">Loading activity...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <div id="toast-container"></div>
+    <script src="app.js?v=11.0"></script>
+<script src="avatars.js?v=1.0"></script>
+    <script src="sounds.js?v=1.0"></script>
+<script src="shell.js?v=12.1"></script>
+</body>
+</html>

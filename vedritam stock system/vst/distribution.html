@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distribution - Vedritam</title>
+<script>(function(){try{var t=localStorage.getItem('v_theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+<link rel="stylesheet" href="style.css?v=11.1">
+<link rel="stylesheet" href="theme.css?v=12.1">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+  .dist-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:900px){.dist-grid{grid-template-columns:1fr}}
+  .dist-card{background:var(--v-surface,#fff);border:1px solid var(--v-border,#e2e8f0);border-radius:14px;padding:18px}
+  .dist-card h3{margin:0 0 12px;font-size:16px;font-weight:650}
+  .dist-form label{display:block;font-size:12.5px;font-weight:600;color:var(--text-muted,#64748B);margin:8px 0 4px}
+  .dist-form select,.dist-form input,.dist-form textarea{width:100%;padding:9px 11px;border:1px solid var(--v-border,#e2e8f0);border-radius:8px;background:transparent;color:inherit;font:inherit}
+  .dist-tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+  .dist-tbl th,.dist-tbl td{padding:9px 8px;border-bottom:1px solid var(--v-border,#e2e8f0);text-align:left}
+  .dist-tbl th{font-size:12px;color:var(--text-muted,#64748B);text-transform:uppercase;letter-spacing:.03em}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;background:rgba(37,99,235,.12);color:#2563EB}
+</style>
+</head>
+<body data-page="distribution">
+<main class="main-content">
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px">
+    <div>
+      <h1 class="v-page-title">Distribution</h1>
+      <p class="v-page-sub">Issue books from a class ledger row to teachers or a section — balance auto-updates.</p>
+    </div>
+  </div>
+
+  <div class="dist-grid">
+    <div class="dist-card">
+      <h3>New Distribution</h3>
+      <form id="distForm" class="dist-form">
+        <label>School</label>
+        <select id="dSchool" required></select>
+        <label>Class</label>
+        <select id="dClass" required disabled></select>
+        <label>Book (ledger row)</label>
+        <select id="dBook" required disabled></select>
+        <label>Recipient (teacher / section)</label>
+        <input id="dRecipient" placeholder="e.g. Class 8-B or Mrs. Sharma" required>
+        <label>Quantity</label>
+        <input id="dQty" type="number" min="1" step="1" required>
+        <label>Remarks (optional)</label>
+        <textarea id="dRemarks" rows="2" placeholder="e.g. Term 2 issue"></textarea>
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <button class="v-btn" type="submit" id="dSubmit">Record distribution</button>
+          <button class="v-btn ghost" type="button" id="dPrint" disabled>Print last slip</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="dist-card">
+      <h3>Recent distributions</h3>
+      <div style="max-height:520px;overflow:auto">
+        <table class="dist-tbl">
+          <thead><tr><th>Date</th><th>Book</th><th>Qty</th><th>Recipient</th><th>By</th><th style="width:80px">Fix</th></tr></thead>
+          <tbody id="distBody"><tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div id="toast-container"></div>
+<div id="dConfirm" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.55);align-items:center;justify-content:center">
+  <div style="background:var(--v-elev,#fff);color:var(--v-text,#0f172a);border:1px solid var(--v-border,#e2e8f0);border-radius:14px;padding:20px;max-width:380px;width:calc(100% - 40px);box-shadow:0 18px 50px rgba(0,0,0,.28)">
+    <h3 style="margin:0 0 8px;font-size:16px">Undo this distribution?</h3>
+    <p id="dConfirmText" style="margin:0 0 16px;font-size:13.5px;color:var(--v-text-muted,#64748b)"></p>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button type="button" class="v-btn ghost" id="dConfirmNo" style="width:auto;padding:8px 14px">Cancel</button>
+      <button type="button" class="v-btn" id="dConfirmYes" style="width:auto;padding:8px 14px">Yes, undo</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js?v=11.0"></script>
+<script src="avatars.js?v=1.0"></script>
+<script src="sounds.js?v=1.0"></script>
+<script src="shell.js?v=12.1"></script>
+<script src="chatbot.js?v=11.0"></script>
+<script>
+(function(){
+  var lastSlip = null;
+  var historyRows = [];
+  var pendingUndoId = null;
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function toast(m,t){ if(window.App&&App.ui&&App.ui.showToast) App.ui.showToast(m,t||'success'); else if(t==='error') alert(m); }
+  function $(id){ return document.getElementById(id); }
+
+  var schools=[], classes=[], books=[];
+  var dSchool=$('dSchool'), dClass=$('dClass'), dBook=$('dBook');
+
+  async function loadSchools(){
+    schools = await App.apiCall('/schools');
+    dSchool.innerHTML = '<option value="">-- select --</option>' + schools.map(function(s){
+      return '<option value="'+s.id+'">'+esc(s.name)+'</option>';
+    }).join('');
+    if (schools.length===1){ dSchool.value=schools[0].id; onSchool(); }
+  }
+  async function onSchool(){
+    dClass.disabled=true; dBook.disabled=true; dClass.innerHTML=''; dBook.innerHTML='';
+    var id = dSchool.value; if(!id) return;
+    classes = await App.apiCall('/schools/'+id+'/classes');
+    dClass.innerHTML='<option value="">-- select --</option>'+classes.map(function(c){
+      return '<option value="'+c.id+'">'+esc(c.name)+'</option>';
+    }).join('');
+    dClass.disabled=false;
+  }
+  async function onClass(){
+    dBook.disabled=true; dBook.innerHTML='';
+    var s=dSchool.value, c=dClass.value; if(!s||!c) return;
+    books = await App.apiCall('/ledger/'+s+'/'+c);
+    if (!books.length){ dBook.innerHTML='<option value="">No books in this class ledger</option>'; return; }
+    dBook.innerHTML='<option value="">-- select --</option>'+books.map(function(b){
+      return '<option value="'+b.id+'">'+esc(b.bookName)+' — balance '+(b.balance||0)+'</option>';
+    }).join('');
+    dBook.disabled=false;
+  }
+
+  async function loadHistory(){
+    var body = $('distBody');
+    var rows = [];
+    try { rows = await App.apiCall('/distributions'); } catch(err){
+      body.innerHTML='<tr><td colspan="6" style="text-align:center;color:#EF4444">Could not load history. Reload the page.</td></tr>';
+      return;
+    }
+    historyRows = rows || [];
+    var printBtn = $('dPrint');
+    if (printBtn) printBtn.disabled = !(lastSlip || historyRows.length);
+    if (!historyRows.length){ body.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">No distributions yet.</td></tr>'; return; }
+    body.innerHTML = historyRows.map(function(r){
+      return '<tr data-id="'+esc(r.id)+'"><td>'+esc(r.timestamp)+'</td><td>'+esc(r.book_name)+'</td><td>'+esc(r.quantity)+'</td><td>'+esc(r.recipient)+'</td><td>'+esc(r.created_by)+'</td>'+
+        '<td style="white-space:nowrap">'+
+          '<button class="v-btn ghost" type="button" data-act="print" data-id="'+esc(r.id)+'" style="padding:3px 9px;font-size:12px" title="Print this slip">Print</button> '+
+          '<button class="v-btn ghost" type="button" data-act="undo" data-id="'+esc(r.id)+'" style="padding:3px 9px;font-size:12px">Undo</button>'+
+        '</td></tr>';
+    }).join('');
+  }
+
+  function findRow(id){
+    for (var i=0;i<historyRows.length;i++){ if (String(historyRows[i].id) === String(id)) return historyRows[i]; }
+    return null;
+  }
+
+  // ---- Undo: one click opens a clear in-page confirm dialog ----------------
+  function openConfirm(id){
+    var rec = findRow(id);
+    pendingUndoId = id;
+    $('dConfirmText').textContent = rec
+      ? ('This returns ' + rec.quantity + ' x "' + rec.book_name + '" issued to ' + rec.recipient + ' back into the class balance.')
+      : 'This returns the books back into the class balance.';
+    $('dConfirm').style.display = 'flex';
+  }
+  function closeConfirm(){ pendingUndoId = null; $('dConfirm').style.display = 'none'; }
+
+  async function doUndo(){
+    var id = pendingUndoId;
+    if (!id) { closeConfirm(); return; }
+    var yes = $('dConfirmYes');
+    yes.disabled = true; yes.textContent = 'Undoing...';
+    try {
+      await App.apiCall('/distributions/' + encodeURIComponent(id), 'DELETE');
+      closeConfirm();
+      toast('Distribution reversed — the books are back in the class balance.');
+      await loadHistory();
+      if (dClass.value) { try { await onClass(); } catch(e2){} }
+    } catch(err){
+      toast(err && err.message ? err.message : 'Could not reverse this distribution.', 'error');
+      closeConfirm();
+    } finally {
+      yes.disabled = false; yes.textContent = 'Yes, undo';
+    }
+  }
+
+  // ---- Print: opened straight from the click so browsers allow it ---------
+  function slipHtml(rec){
+    var school = '';
+    for (var i=0;i<schools.length;i++){ if (String(schools[i].id)===String(rec.school_id)) { school = schools[i].name; break; } }
+    return '<!doctype html><meta charset="utf-8"><title>Delivery slip</title>'+
+      '<style>body{font:14px Inter,Arial;padding:24px}h2{margin:0 0 8px}table{width:100%;border-collapse:collapse;margin-top:12px}td{padding:6px 4px;border-bottom:1px solid #ddd}@media print{.noprint{display:none}}</style>'+
+      '<h2>Vedritam — Distribution slip</h2><div>#'+esc(rec.id)+'</div><table>'+
+      '<tr><td>School</td><td><b>'+esc(school)+'</b></td></tr>'+
+      '<tr><td>Book</td><td>'+esc(rec.book_name)+'</td></tr>'+
+      '<tr><td>Quantity</td><td>'+esc(rec.quantity)+'</td></tr>'+
+      '<tr><td>Recipient</td><td>'+esc(rec.recipient)+'</td></tr>'+
+      '<tr><td>Remarks</td><td>'+esc(rec.remarks||'')+'</td></tr>'+
+      '<tr><td>Issued by</td><td>'+esc(rec.created_by)+' at '+esc(rec.timestamp)+'</td></tr></table>'+
+      '<p style="margin-top:36px">Signature: ____________________</p>'+
+      '<p class="noprint" style="margin-top:24px"><button onclick="window.print()">Print this slip</button></p>'+
+      '<script>window.onload=function(){setTimeout(function(){window.focus();window.print();},150);};<\/script>';
+  }
+
+  function printViaIframe(doc){
+    var f = document.createElement('iframe');
+    f.setAttribute('aria-hidden','true');
+    f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+    document.body.appendChild(f);
+    var d = f.contentWindow.document;
+    d.open(); d.write(doc); d.close();
+    setTimeout(function(){
+      try { f.contentWindow.focus(); f.contentWindow.print(); }
+      catch(e){ toast('Printing was blocked. Allow pop-ups for this site and try again.', 'error'); }
+      setTimeout(function(){ f.remove(); }, 2000);
+    }, 300);
+  }
+
+  // Must run inside the click handler (user gesture) or the window is blocked.
+  function printSlip(rec){
+    if (!rec) { toast('Nothing to print yet.', 'error'); return; }
+    var doc = slipHtml(rec);
+    var w = null;
+    try { w = window.open('', '_blank', 'width=720,height=800'); } catch(e){ w = null; }
+    if (w && w.document) { w.document.open(); w.document.write(doc); w.document.close(); try { w.focus(); } catch(e2){} }
+    else { printViaIframe(doc); }
+  }
+
+  // ---- Wiring (runs immediately; the script sits at the end of the body) ---
+  $('distBody').addEventListener('click', function(e){
+    var b = e.target && e.target.closest ? e.target.closest('button[data-act]') : null;
+    if (!b) return;
+    e.preventDefault();
+    var act = b.getAttribute('data-act');
+    var id  = b.getAttribute('data-id');
+    if (act === 'print') {
+      var rec = findRow(id);
+      if (rec) printSlip(rec); else toast('That distribution is no longer in the list.', 'error');
+    } else if (act === 'undo') {
+      openConfirm(id);
+    }
+  });
+  $('dConfirmNo').addEventListener('click', closeConfirm);
+  $('dConfirmYes').addEventListener('click', doUndo);
+  $('dConfirm').addEventListener('click', function(e){ if (e.target === this) closeConfirm(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && pendingUndoId) closeConfirm(); });
+
+  dSchool.addEventListener('change', onSchool);
+  dClass.addEventListener('change', onClass);
+
+  $('distForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    var btn = $('dSubmit'); btn.disabled=true;
+    try{
+      var res = await App.apiCall('/distributions','POST',{
+        schoolId: parseInt(dSchool.value,10),
+        classId: parseInt(dClass.value,10),
+        ledgerId: dBook.value,
+        recipient: $('dRecipient').value,
+        quantity: parseInt($('dQty').value,10),
+        remarks: $('dRemarks').value,
+      });
+      lastSlip = res.data; $('dPrint').disabled = false;
+      toast('Distribution recorded.');
+      $('distForm').reset(); dClass.disabled=true; dBook.disabled=true;
+      loadHistory();
+    }catch(err){ toast(err.message,'error'); }
+    finally{ btn.disabled=false; }
+  });
+
+  $('dPrint').addEventListener('click', function(){
+    printSlip(lastSlip || historyRows[0] || null);
+  });
+
+  function start(){
+    if(!localStorage.getItem('v_token')){ window.location.href='index.html'; return; }
+    loadSchools(); loadHistory();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+</script>
+</body>
+</html>
